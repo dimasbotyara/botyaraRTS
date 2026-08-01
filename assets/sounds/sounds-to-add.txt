@@ -1,0 +1,123 @@
+📁 assets/sounds/
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ КАТЕГОРИЯ          │ ФАЙЛ                │ ПОИСК             │ ~СЕК│
+├─────────────────────────────────────────────────────────────────────┤
+│                    UI / ИНТЕРФЕЙС                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│ Клик кнопки        │ ui_click.wav        │ "ui click sci-fi"  │ 0.2│
+│ Наведение          │ ui_hover.wav        │ "ui hover beep"    │ 0.1│
+│ Ошибка             │ ui_error.wav        │ "error buzz sci-fi"│ 0.3│
+│ Выбор юнита        │ ui_select.wav       │ "select unit beep" │ 0.2│
+│ Отмена             │ ui_cancel.wav       │ "cancel swoosh"    │ 0.3│
+│ Апгрейд получен    │ ui_upgrade.wav      │ "upgrade power up" │ 0.8│
+│ Открытие меню      │ ui_open.wav         │ "menu open whoosh" │ 0.4│
+│ Пинг               │ ui_ping.wav         │ "radar ping sonar" │ 0.5│
+│ Чат сообщение      │ ui_chat.wav         │ "message notify"   │ 0.3│
+│ Тревога (база)     │ ui_alert.wav        │ "alarm alert siren"│ 1.5│
+├─────────────────────────────────────────────────────────────────────┤
+│                    ЮНИТЫ - ДВИЖЕНИЕ                                │
+├─────────────────────────────────────────────────────────────────────┤
+│ Пехота шаг         │ unit_footstep.wav   │ "footstep metal"   │ 0.3│
+│ Техника движение   │ unit_engine.wav     │ "tank engine idle" │ 2.0│
+│ Авиация полёт      │ unit_jet.wav        │ "jet engine hover" │ 2.0│
+│ Мех шаги           │ unit_mech_step.wav  │ "mech stomp metal" │ 0.5│
+├─────────────────────────────────────────────────────────────────────┤
+│                    ЮНИТЫ - ГОЛОСА (при выборе/приказе)              │
+├─────────────────────────────────────────────────────────────────────┤
+│ "Готов"             │ voice_ready.wav     │ "soldier ready      │    │
+│                     │                     │  affirmative" или   │ 0.8│
+│                     │                     │  синтезировать TTS  │    │
+│ "Выполняю"         │ voice_move.wav      │ "soldier moving out"│ 0.8│
+│ "Атакую"           │ voice_attack.wav    │ "soldier attack     │    │
+│                     │                     │  engaging enemy"    │ 0.8│
+│ "Не могу"          │ voice_cant.wav      │ "negative cannot"   │ 0.6│
+│ Робот голос        │ voice_robot.wav     │ "robot voice beep"  │ 0.5│
+├─────────────────────────────────────────────────────────────────────┤
+│                    ОРУЖИЕ - СТРЕЛЬБА                               │
+├─────────────────────────────────────────────────────────────────────┤
+│ Автомат            │ wpn_rifle.wav       │ "assault rifle      │    │
+│                     │                     │  burst sci-fi"      │ 0.4│
+│ Снайперка          │ wpn_sniper.wav      │ "sniper shot echo"  │ 0.8│
+│ Ракета пуск        │ wpn_rocket.wav      │ "rocket launcher    │    │
+│                     │                     │  missile launch"    │ 0.6│
+│ Миниган            │ wpn_minigun.wav     │ "minigun burst      │    │
+│                     │                     │  gatling"           │ 1.0│
+│ Пушка танка        │ wpn_cannon.wav      │ "tank cannon shot   │    │
+│                     │                     │  heavy"             │ 0.8│
+│ Огнемёт            │ wpn_flame.wav       │ "flamethrower burst"│ 1.5│
+│ Лазер              │ wpn_laser.wav       │ "laser beam sci-fi" │ 0.5│
+│ Плазма             │ wpn_plasma.wav      │ "plasma shot energy"│ 0.4│
+│ Турель             │ wpn_turret.wav      │ "turret autofire"   │ 0.3│
+│ Зенитка            │ wpn_aa.wav          │ "anti-air missile   │    │
+│                     │                     │  flak"              │ 0.5│
+│ Артиллерия         │ wpn_artillery.wav   │ "artillery cannon   │    │
+│                     │                     │  distant boom"      │ 1.2│
+├─────────────────────────────────────────────────────────────────────┤
+│                    ВЗРЫВЫ И УДАРЫ                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│ Маленький взрыв    │ exp_small.wav       │ "small explosion    │    │
+│                     │                     │  grenade"           │ 0.8│
+│ Средний взрыв      │ exp_medium.wav      │ "medium explosion   │    │
+│                     │                     │  missile"           │ 1.0│
+│ Большой взрыв      │ exp_large.wav       │ "large explosion    │    │
+│                     │                     │  building destroy"  │ 1.5│
+│ Ядерный взрыв      │ exp_nuke.wav        │ "nuclear explosion  │    │
+│                     │                     │  massive"           │ 3.0│
+│ Мина               │ exp_mine.wav        │ "landmine explosion"│ 0.8│
+│ Попадание (металл) │ hit_metal.wav       │ "bullet impact      │    │
+│                     │                     │  metal clang"       │ 0.3│
+│ Попадание (щит)    │ hit_shield.wav      │ "shield impact      │    │
+│                     │                     │  energy deflect"    │ 0.4│
+├─────────────────────────────────────────────────────────────────────┤
+│                    СТРОИТЕЛЬСТВО И ЭКОНОМИКА                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ Начало стройки     │ build_start.wav     │ "construction start │    │
+│                     │                     │  hammer"            │ 0.5│
+│ Стройка (луп)      │ build_loop.wav      │ "construction       │    │
+│                     │                     │  building loop"     │ 3.0│
+│ Здание готово      │ build_complete.wav  │ "building complete  │    │
+│                     │                     │  power up"          │ 1.0│
+│ Юнит создан        │ unit_ready.wav      │ "unit produced      │    │
+│                     │                     │  ready beep"        │ 0.5│
+│ Добыча ресурса     │ harvest_titan.wav   │ "mining drill       │    │
+│                     │                     │  mineral"           │ 1.0│
+│ Добыча плазмы      │ harvest_plasma.wav  │ "energy extraction  │    │
+│                     │                     │  gas hiss"          │ 1.0│
+│ Ресурсы сданы      │ harvest_drop.wav    │ "resource deposit   │    │
+│                     │                     │  clink"             │ 0.3│
+├─────────────────────────────────────────────────────────────────────┤
+│                    СПЕЦЭФФЕКТЫ                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│ Стелс вкл          │ fx_cloak_on.wav     │ "stealth cloak      │    │
+│                     │                     │  activate shimmer"  │ 0.6│
+│ Стелс выкл         │ fx_cloak_off.wav    │ "stealth decloak    │    │
+│                     │                     │  reveal"            │ 0.4│
+│ Щит активация      │ fx_shield.wav       │ "shield activate    │    │
+│                     │                     │  energy barrier"    │ 0.8│
+│ Контроль разума    │ fx_mind.wav         │ "mind control psi   │    │
+│                     │                     │  psychic"           │ 1.0│
+│ Лечение            │ fx_heal.wav         │ "heal restore       │    │
+│                     │                     │  medical"           │ 0.5│
+│ Осадный режим      │ fx_siege.wav        │ "deploy transform   │    │
+│                     │                     │  mech hydraulic"    │ 1.5│
+│ Орбитальный удар   │ fx_orbital.wav      │ "orbital strike     │    │
+│                     │                     │  laser beam charge" │ 2.5│
+│ Смерть юнита       │ fx_death.wav        │ "unit death scream  │    │
+│                     │                     │  robot shutdown"    │ 0.6│
+│ Здание рушится     │ fx_collapse.wav     │ "building collapse  │    │
+│                     │                     │  crumble"           │ 2.0│
+├─────────────────────────────────────────────────────────────────────┤
+│                    МУЗЫКА                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│ Меню (луп)         │ music_menu.ogg      │ "ambient sci-fi     │    │
+│                     │                     │  menu music"        │ 60+│
+│ Игра спокойно      │ music_peace.ogg     │ "rts strategy       │    │
+│                     │                     │  ambient calm"      │ 90+│
+│ Бой                │ music_battle.ogg    │ "battle combat      │    │
+│                     │                     │  action intense"    │ 90+│
+│ Победа             │ music_victory.ogg   │ "victory fanfare    │    │
+│                     │                     │  triumphant"        │ 15 │
+│ Поражение          │ music_defeat.ogg    │ "defeat sad         │    │
+│                     │                     │  melancholy"        │ 15 │
+└─────────────────────────────────────────────────────────────────────┘
