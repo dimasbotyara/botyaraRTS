@@ -1,0 +1,1 @@
+"""botyaraRTS entities package."""
