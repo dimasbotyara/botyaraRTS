@@ -12,8 +12,8 @@ class Minimap:
         self.screen_w = screen_w
         self.screen_h = screen_h
 
-        # Размер и позиция
-        self.size = game_settings.get('minimap_size')
+        # Размер и позиция (выровнены по высоте с центральной панелью HUD)
+        self.size = 200
         self.padding = 10
         self.update_position()
 
@@ -34,15 +34,12 @@ class Minimap:
 
     def update_position(self):
         """Обновить позицию миникарты на экране."""
-        pos = game_settings.get('minimap_position')
-        if pos == 'bottom_left':
-            self.x = self.padding
-            self.y = self.screen_h - self.size - self.padding
-        else:
-            self.x = self.screen_w - self.size - self.padding
-            self.y = self.screen_h - self.size - self.padding
-
+        self.size = 200
+        self.x = self.padding
+        self.y = self.screen_h - self.size - 10
         self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
+        self.scale_x = self.size / MAP_WIDTH
+        self.scale_y = self.size / MAP_HEIGHT
 
     def _render_terrain(self):
         """Отрисовка ландшафта на кэшированную поверхность."""

@@ -131,8 +131,8 @@ class Unit(Entity):
                 self.state = 'IDLE'
                 self.path = []
 
-        # В агрессивном стансе — проверяем врагов по пути
-        if self.stance == 'AGGRESSIVE':
+        # В агрессивном стансе или при Attack-Move — проверяем врагов по пути
+        if getattr(self, 'is_attack_move', False):
             enemy = self._find_enemy_in_range(game_state, self.aggro_range)
             if enemy:
                 self.origin_point = (self.x, self.y)
@@ -264,8 +264,18 @@ class Unit(Entity):
         return int(damage * modifier)
 
     def _find_enemy_in_range(self, game_state, range_px):
-        """Найти ближайшего врага в радиусе."""
+        """Найти врага в радиусе. ПРИОРИТЕТ: Вражеские юниты > Постройки."""
         if not hasattr(game_state, 'spatial_hash'):
+            return None
+
+        # Проверяем настройки авто-атаки
+        try:
+            from settings import game_settings
+            auto_mode = game_settings.get('auto_attack_mode', 'all')
+        except Exception:
+            auto_mode = 'all'
+
+        if auto_mode == 'never':
             return None
 
         def is_valid_target(e):
@@ -275,14 +285,32 @@ class Unit(Entity):
                 return False
             if not e.is_flying and not self.can_attack_ground:
                 return False
-            # Невидимые юниты
             if e.is_cloaked and not self.is_detector:
                 return False
             return True
 
-        return game_state.spatial_hash.query_nearest(
-            self.x, self.y, range_px, filter_fn=is_valid_target
+        def is_unit_target(e):
+            return is_valid_target(e) and getattr(e, 'is_unit', False)
+
+        def is_building_target(e):
+            return is_valid_target(e) and getattr(e, 'is_building', False)
+
+        # 1-й проход: ищем мобильных вражеских юнитов (высший приоритет)
+        target_unit = game_state.spatial_hash.query_nearest(
+            self.x, self.y, range_px, filter_fn=is_unit_target
         )
+        if target_unit:
+            return target_unit
+
+        # 2-й проход: постройки (только если нет юнитов и режим позволяет)
+        if auto_mode != 'units_only':
+            target_building = game_state.spatial_hash.query_nearest(
+                self.x, self.y, range_px, filter_fn=is_building_target
+            )
+            if target_building:
+                return target_building
+
+        return None
 
     def _move_towards(self, target_x, target_y, dt):
         """Двигаться к точке. Возвращает True если дошёл."""
@@ -318,8 +346,9 @@ class Unit(Entity):
         self.state = 'IDLE'
         self.origin_point = None
 
-    def move_to_point(self, world_x, world_y, tilemap):
+    def move_to_point(self, world_x, world_y, tilemap, attack_move=False):
         """Приказ двигаться к точке (находит путь A*)."""
+        self.is_attack_move = attack_move
         if tilemap:
             start_tx, start_ty = self.get_tile_pos()
             end_tx = int(world_x // TILE_SIZE)

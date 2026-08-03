@@ -14,14 +14,14 @@ class HUD:
         self.screen_w = screen_w
         self.screen_h = screen_h
 
-        # Панель управления (нижняя)
-        self.panel_height = 180
+        # Панель управления (нижняя центральная консоль)
+        self.panel_height = 200
+        self.panel_width = max(520, min(680, screen_w - 440)) if screen_w >= 900 else max(350, screen_w - 240)
+        self.panel_x = (screen_w - self.panel_width) // 2
+        self.panel_y = screen_h - self.panel_height - 10
         self.panel_rect = pygame.Rect(
-            0, screen_h - self.panel_height,
-            screen_w, self.panel_height
-        )
-        self.panel_surface = pygame.Surface(
-            (screen_w, self.panel_height), pygame.SRCALPHA
+            self.panel_x, self.panel_y,
+            self.panel_width, self.panel_height
         )
 
         # Вкладки строительства
@@ -32,8 +32,8 @@ class HUD:
 
         # Кнопки юнитов в панели
         self.action_buttons = []
-        self.button_size = 48
-        self.button_margin = 4
+        self.button_size = 52
+        self.button_margin = 6
 
         # Шрифты
         self.font_large = None
@@ -122,21 +122,14 @@ class HUD:
         surface.blit(fps_text, (self.screen_w - fps_text.get_width() - 20, 20))
 
     def _render_bottom_panel(self, surface, game_state, selected_entities):
-        """Нижняя панель управления."""
-        self.panel_surface.fill((0, 0, 0, 0))
-
-        # Фон панели
-        panel_bg = pygame.Surface((self.screen_w, self.panel_height), pygame.SRCALPHA)
+        """Нижняя панель управления (красивая центрированная карточка)."""
         opacity = int(255 * game_settings.get('ui_opacity'))
-        panel_bg.fill((20, 25, 30, opacity))
-        surface.blit(panel_bg, (0, self.screen_h - self.panel_height))
+        panel_bg = pygame.Surface((self.panel_width, self.panel_height), pygame.SRCALPHA)
+        pygame.draw.rect(panel_bg, (20, 25, 30, opacity), (0, 0, self.panel_width, self.panel_height), border_radius=12)
+        pygame.draw.rect(panel_bg, COLOR_UI_PANEL_BORDER, (0, 0, self.panel_width, self.panel_height), 2, border_radius=12)
+        surface.blit(panel_bg, (self.panel_x, self.panel_y))
 
-        # Рамка
-        pygame.draw.line(surface, COLOR_UI_PANEL_BORDER,
-                         (0, self.screen_h - self.panel_height),
-                         (self.screen_w, self.screen_h - self.panel_height), 2)
-
-        panel_y = self.screen_h - self.panel_height + 5
+        panel_y = self.panel_y + 12
 
         if not selected_entities:
             # Показываем вкладки строительства
@@ -151,28 +144,28 @@ class HUD:
     def _render_build_tabs(self, surface, game_state, panel_y):
         """Вкладки строительства."""
         self.tab_rects = []
-        tab_x = 10
+        tab_x = self.panel_x + 15
         tab_width = 120
         tab_height = 28
 
         for i, tab_name in enumerate(self.build_tabs):
-            rect = pygame.Rect(tab_x + i * (tab_width + 5), panel_y, tab_width, tab_height)
+            rect = pygame.Rect(tab_x + i * (tab_width + 6), panel_y, tab_width, tab_height)
             self.tab_rects.append(rect)
 
             color = COLOR_UI_ACCENT if i == self.current_tab else COLOR_UI_PANEL
-            pygame.draw.rect(surface, color, rect, border_radius=4)
-            pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=4)
+            pygame.draw.rect(surface, color, rect, border_radius=6)
+            pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
             text = self.font_small.render(tab_name, True, COLOR_UI_TEXT)
-            surface.blit(text, (rect.x + 5, rect.y + 6))
+            surface.blit(text, (rect.x + 6, rect.y + 6))
 
         # Кнопки зданий текущей вкладки
         self.action_buttons = []
         category = self.build_tab_keys[self.current_tab]
         buildings = ALL_BUILDINGS.get(category, [])
 
-        btn_y = panel_y + 35
-        btn_x = 10
+        btn_y = panel_y + 40
+        btn_x = self.panel_x + 15
 
         player = game_state.players.get(game_state.local_player_id)
 
@@ -181,7 +174,6 @@ class HUD:
             rect = pygame.Rect(btn_x + i * (self.button_size + self.button_margin),
                                btn_y, self.button_size, self.button_size)
 
-            # Можно ли позволить?
             can_afford = True
             if player:
                 cost_mult = player.get_upgrade_bonus('building_cost', 1.0)
@@ -191,8 +183,8 @@ class HUD:
                 )
 
             bg_color = temp.color if can_afford else (60, 60, 60)
-            pygame.draw.rect(surface, bg_color, rect, border_radius=4)
-            pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=4)
+            pygame.draw.rect(surface, bg_color, rect, border_radius=6)
+            pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
             # Название
             name_text = self.font_small.render(temp.name[:6], True, COLOR_UI_TEXT)
@@ -200,7 +192,7 @@ class HUD:
 
             # Стоимость
             cost_text = self.font_small.render(f"{temp.cost_titan}", True, COLOR_TITAN_ORE)
-            surface.blit(cost_text, (rect.x + 2, rect.y + self.button_size - 14))
+            surface.blit(cost_text, (rect.x + 2, rect.y + self.button_size - 16))
 
             self.action_buttons.append({
                 'rect': rect,
@@ -210,7 +202,7 @@ class HUD:
 
     def _render_single_info(self, surface, entity, panel_y, game_state):
         """Информация об одном выделенном объекте."""
-        x = 10
+        x = self.panel_x + 15
 
         # Имя
         name_text = self.font_large.render(entity.name, True, COLOR_UI_TEXT)
@@ -220,18 +212,18 @@ class HUD:
         hp_text = self.font_medium.render(
             f"HP: {int(entity.hp)} / {entity.max_hp}", True, COLOR_HP_BAR_FULL
         )
-        surface.blit(hp_text, (x, panel_y + 25))
+        surface.blit(hp_text, (x, panel_y + 28))
 
         # Щит
         if entity.max_shield > 0:
             shield_text = self.font_medium.render(
                 f"Shield: {int(entity.shield)} / {entity.max_shield}", True, COLOR_SHIELD_BAR
             )
-            surface.blit(shield_text, (x, panel_y + 42))
+            surface.blit(shield_text, (x, panel_y + 48))
 
         # Для юнитов — статы
         if entity.is_unit:
-            stats_x = 250
+            stats_x = self.panel_x + 240
             dmg_text = self.font_small.render(
                 f"DMG: {entity.attack_damage}  RNG: {entity.attack_range}  SPD: {int(entity.speed)}",
                 True, COLOR_UI_TEXT_DIM
@@ -241,12 +233,12 @@ class HUD:
             stance_text = self.font_small.render(
                 f"Stance: {entity.stance}", True, COLOR_UI_TEXT_DIM
             )
-            surface.blit(stance_text, (stats_x, panel_y + 22))
+            surface.blit(stance_text, (stats_x, panel_y + 25))
 
         # Для зданий — очередь производства
         if entity.is_building and entity.can_produce and entity.is_completed:
             self.action_buttons = []
-            btn_x = 250
+            btn_x = self.panel_x + 240
             btn_y = panel_y + 5
 
             if hasattr(entity, 'get_producible_units'):
@@ -266,8 +258,8 @@ class HUD:
                         )
 
                     bg_color = temp.color if can_afford else (60, 60, 60)
-                    pygame.draw.rect(surface, bg_color, rect, border_radius=4)
-                    pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=4)
+                    pygame.draw.rect(surface, bg_color, rect, border_radius=6)
+                    pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
                     name_text = self.font_small.render(temp.name[:6], True, COLOR_UI_TEXT)
                     surface.blit(name_text, (rect.x + 2, rect.y + 2))
@@ -275,7 +267,7 @@ class HUD:
                     cost_text = self.font_small.render(
                         f"{temp.cost_titan}", True, COLOR_TITAN_ORE
                     )
-                    surface.blit(cost_text, (rect.x + 2, rect.y + self.button_size - 14))
+                    surface.blit(cost_text, (rect.x + 2, rect.y + self.button_size - 16))
 
                     self.action_buttons.append({
                         'rect': rect,
@@ -285,22 +277,21 @@ class HUD:
                     })
 
             # Показываем очередь производства
-            queue_y = btn_y + self.button_size + 10
-            queue_x = 250
+            queue_y = btn_y + self.button_size + 12
+            queue_x = self.panel_x + 240
             for i, (unit_class, build_time, elapsed) in enumerate(entity.production_queue):
                 temp = unit_class(0, 0)
-                qr = pygame.Rect(queue_x + i * 30, queue_y, 25, 25)
+                qr = pygame.Rect(queue_x + i * 32, queue_y, 28, 28)
                 progress = elapsed / build_time if build_time > 0 else 0
-                pygame.draw.rect(surface, (40, 40, 60), qr)
-                fill_h = int(25 * progress)
+                pygame.draw.rect(surface, (40, 40, 60), qr, border_radius=4)
+                fill_h = int(28 * progress)
                 if fill_h > 0:
                     pygame.draw.rect(surface, COLOR_UI_ACCENT,
-                                     (qr.x, qr.bottom - fill_h, 25, fill_h))
-                pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, qr, 1)
+                                     (qr.x, qr.bottom - fill_h, 28, fill_h), border_radius=4)
+                pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, qr, 1, border_radius=4)
 
     def _render_group_info(self, surface, entities, panel_y):
         """Информация о группе юнитов."""
-        # Считаем типы
         type_counts = {}
         for entity in entities:
             name = entity.name
@@ -308,14 +299,14 @@ class HUD:
                 type_counts[name] = {'count': 0, 'color': entity.color}
             type_counts[name]['count'] += 1
 
-        x = 10
+        x = self.panel_x + 15
         y = panel_y
 
         header = self.font_medium.render(
             f"Selected: {len(entities)} units", True, COLOR_UI_TEXT
         )
         surface.blit(header, (x, y))
-        y += 22
+        y += 24
 
         for name, data in type_counts.items():
             text = self.font_small.render(
@@ -323,8 +314,8 @@ class HUD:
             )
             pygame.draw.rect(surface, data['color'], (x, y + 2, 10, 10))
             surface.blit(text, (x + 14, y))
-            y += 16
-            if y > self.screen_h - 20:
+            y += 18
+            if y > self.panel_y + self.panel_height - 20:
                 break
 
     def _render_upgrade_slots(self, surface, game_state):
@@ -376,7 +367,10 @@ class HUD:
     def resize(self, screen_w, screen_h):
         self.screen_w = screen_w
         self.screen_h = screen_h
+        self.panel_width = max(520, min(680, screen_w - 440)) if screen_w >= 900 else max(350, screen_w - 240)
+        self.panel_x = (screen_w - self.panel_width) // 2
+        self.panel_y = screen_h - self.panel_height - 10
         self.panel_rect = pygame.Rect(
-            0, screen_h - self.panel_height,
-            screen_w, self.panel_height
+            self.panel_x, self.panel_y,
+            self.panel_width, self.panel_height
         )

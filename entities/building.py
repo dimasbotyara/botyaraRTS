@@ -269,7 +269,7 @@ class Headquarters(Building):
 
         self.max_hp = 1500
         self.hp = 1500
-        self.vision_range = 10
+        self.vision_range = 18
         self.build_time = 60
         self.cost_titan = 400
 

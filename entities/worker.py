@@ -210,9 +210,9 @@ class Worker(Unit):
         self.building_state = 'IDLE'
         self.build_target = None
 
-    def move_to_point(self, world_x, world_y, tilemap):
+    def move_to_point(self, world_x, world_y, tilemap, attack_move=False):
         self.stop_work()
-        return super().move_to_point(world_x, world_y, tilemap)
+        return super().move_to_point(world_x, world_y, tilemap, attack_move=attack_move)
 
     def attack_target_entity(self, target):
         self.stop_work()

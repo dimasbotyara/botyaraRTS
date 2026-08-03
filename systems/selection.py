@@ -25,12 +25,19 @@ class SelectionSystem:
         self.last_click_pos = None
         self.double_click_speed = 0.3
 
+        # Режим Attack-Move (A-клик)
+        self.attack_move_mode = False
+
         # Группы (Ctrl+1..9)
         self.groups = {}  # {1: [entity, ...], 2: [...], ...}
         self.last_group_press = {}  # {номер: время} для двойного нажатия
 
     def handle_mouse_down(self, pos, button, camera, game_state):
         """Обработка нажатия мыши."""
+        if button == 3 and self.attack_move_mode:
+            self.attack_move_mode = False
+            return
+
         if button == 1:  # ЛКМ
             # Проверяем миникарту
             if hasattr(game_state, 'minimap') and game_state.minimap.is_point_on_minimap(*pos):
@@ -60,6 +67,7 @@ class SelectionSystem:
                 self.drag_current = None
 
         elif button == 3:  # ПКМ
+            self.attack_move_mode = False
             self._handle_right_click(pos, camera, game_state, keys)
 
     def handle_mouse_move(self, pos):
@@ -77,6 +85,24 @@ class SelectionSystem:
 
     def _handle_click(self, pos, camera, game_state, keys):
         """Обработка одиночного клика."""
+        # Обработка клика в режиме Attack-Move (A-клик / Deny / Force Attack)
+        if self.attack_move_mode:
+            self.attack_move_mode = False
+            world_x, world_y = camera.screen_to_world(*pos)
+            target_entity = self._find_entity_at(world_x, world_y, game_state)
+
+            own_units = [e for e in self.selected_entities
+                         if e.is_unit and e.player_id == game_state.local_player_id]
+
+            if target_entity:
+                # Атака конкретной цели (вражеской ИЛИ СОЮЗНОЙ — Deny/Friendly Fire)
+                for unit in own_units:
+                    unit.attack_target_entity(target_entity)
+            else:
+                # Attack-Move к точке на земле
+                for unit in own_units:
+                    unit.move_to_point(world_x, world_y, game_state.tilemap, attack_move=True)
+            return
         world_x, world_y = camera.screen_to_world(*pos)
 
         # Проверяем двойной клик

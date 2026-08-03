@@ -340,13 +340,62 @@ class Game:
 
         random.seed()  # Сбрасываем сид
 
+    def _show_loading_step(self, progress, status_text):
+        """Отрисовка экрана загрузки с прогрессбаром."""
+        self.screen.fill((10, 12, 18))
+        self._render_starfield()
+
+        cx = self.screen_w // 2
+        cy = self.screen_h // 2
+
+        # Заголовок
+        title = self.menu_font_large.render(GAME_TITLE, True, COLOR_UI_TEXT)
+        self.screen.blit(title, (cx - title.get_width() // 2, cy - 100))
+
+        # Описание этапа
+        status = self.menu_font_medium.render(status_text, True, COLOR_UI_ACCENT)
+        self.screen.blit(status, (cx - status.get_width() // 2, cy - 30))
+
+        # Прогрессбар
+        bar_w = 480
+        bar_h = 24
+        bar_x = cx - bar_w // 2
+        bar_y = cy + 20
+
+        # Фон полосы
+        pygame.draw.rect(self.screen, (20, 25, 35), (bar_x, bar_y, bar_w, bar_h), border_radius=12)
+        pygame.draw.rect(self.screen, COLOR_UI_PANEL_BORDER, (bar_x, bar_y, bar_w, bar_h), 2, border_radius=12)
+
+        # Заполнение
+        fill_w = int((bar_w - 6) * max(0.0, min(1.0, progress)))
+        if fill_w > 0:
+            fill_rect = pygame.Rect(bar_x + 3, bar_y + 3, fill_w, bar_h - 6)
+            pygame.draw.rect(self.screen, COLOR_UI_ACCENT, fill_rect, border_radius=8)
+
+        # Процент
+        pct_text = self.menu_font_small.render(f"{int(progress * 100)}%", True, COLOR_UI_TEXT)
+        self.screen.blit(pct_text, (cx - pct_text.get_width() // 2, bar_y + bar_h + 8))
+
+        pygame.display.flip()
+        pygame.event.pump()
+
     def _start_singleplayer(self):
+        self._show_loading_step(0.05, "Initializing Quantum Core...")
         seed = random.randint(0, 999999)
+
+        self._show_loading_step(0.20, "Generating 320x320 Terrain Grid...")
         self.game_state = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=0)
         self.game_state.clock = self.clock
+
+        self._show_loading_step(0.65, "Deploying Player Headquarters & Field Units...")
         self._spawn_starting_units(0)
+
+        self._show_loading_step(0.85, "Establishing Enemy Outpost...")
         self._spawn_ai_units(1)
         self.total_players = 1
+
+        self._show_loading_step(1.00, "Battle Operations Ready!")
+        time.sleep(0.2)
         self.state = STATE_PLAYING
 
     def _start_lobby(self):
@@ -640,6 +689,8 @@ class Game:
             center = gs.selection.handle_group_key(number, keys)
             if center:
                 gs.camera.center_on(center[0], center[1])
+        elif event.key == pygame.K_a:
+            gs.selection.attack_move_mode = not gs.selection.attack_move_mode
         elif event.key == pygame.K_h:
             StanceSystem.set_stance(gs.selection.selected_entities, 'HOLD_POSITION')
         elif event.key == pygame.K_t:
@@ -803,6 +854,13 @@ class Game:
 
         # ===== ЧАТ =====
         gs.chat.render(self.screen)
+
+        # ===== КУРСОР АТАКИ (A-клик) =====
+        if gs.selection.attack_move_mode:
+            mx, my = pygame.mouse.get_pos()
+            pygame.draw.circle(self.screen, (255, 50, 50), (mx, my), 10, 2)
+            pygame.draw.line(self.screen, (255, 50, 50), (mx - 15, my), (mx + 15, my), 2)
+            pygame.draw.line(self.screen, (255, 50, 50), (mx, my - 15), (mx, my + 15), 2)
 
         # ===== ОВЕРЛЕЙ УЛУЧШЕНИЙ =====
         if gs.upgrade_system.is_choosing:

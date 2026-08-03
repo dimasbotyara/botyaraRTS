@@ -172,7 +172,9 @@ class Settings:
             'camera_inertia': CAMERA_INERTIA,
             'zoom_sensitivity': CAMERA_ZOOM_SPEED,
             'invert_zoom': False,
-            'lock_mouse': True,
+            # Gameplay / Combat
+            'auto_attack_mode': 'all',  # 'all' (юниты и постройки), 'units_only' (только юниты), 'never' (выключена)
+            'move_hold_fire': True,     # True: при обычном движении (ПКМ) юниты не отвлекаются на врагов
 
             # UI
             'hp_bar_mode': 'damaged',  # always/damaged/selected/alt
