@@ -5,6 +5,7 @@ botyaraRTS - ui/hud.py
 import pygame
 from settings import *
 from entities.building import ALL_BUILDINGS
+from localization import t, t_unit, t_building
 
 
 class HUD:
@@ -25,7 +26,7 @@ class HUD:
         )
 
         # Вкладки строительства
-        self.build_tabs = ['🏠 Economy', '⚔ Military', '🔬 Research', '🛡 Defense']
+        self.build_tabs = [t('hud.build_tab_economy'), t('hud.build_tab_military'), t('hud.build_tab_research'), t('hud.build_tab_defense')]
         self.build_tab_keys = ['economy', 'production', 'research', 'defense']
         self.current_tab = 0
         self.tab_rects = []
@@ -85,14 +86,14 @@ class HUD:
 
         # Титан
         titan_text = self.font_medium.render(
-            f"⛏ Titan: {int(player.titan)}", True, COLOR_TITAN_ORE
+            t('hud.titan', amount=int(player.titan)), True, COLOR_TITAN_ORE
         )
         surface.blit(titan_text, (x, 6))
         x += titan_text.get_width() + 30
 
         # Плазма
         plasma_text = self.font_medium.render(
-            f"⚡ Plasma: {int(player.plasma)}", True, COLOR_PLASMA_GEYSER
+            t('hud.plasma', amount=int(player.plasma)), True, COLOR_PLASMA_GEYSER
         )
         surface.blit(plasma_text, (x, 6))
         x += plasma_text.get_width() + 30
@@ -117,7 +118,7 @@ class HUD:
 
         # FPS
         fps_text = self.font_small.render(
-            f"FPS: {int(game_state.clock.get_fps())}", True, COLOR_UI_TEXT_DIM
+            t('hud.fps', fps=int(game_state.clock.get_fps())), True, COLOR_UI_TEXT_DIM
         )
         surface.blit(fps_text, (self.screen_w - fps_text.get_width() - 20, 20))
 
@@ -207,19 +208,20 @@ class HUD:
         x = self.panel_x + 15
 
         # Имя
-        name_text = self.font_large.render(entity.name, True, COLOR_UI_TEXT)
+        display_name = t_unit(entity.name) if entity.is_unit else t_building(entity.name)
+        name_text = self.font_large.render(display_name, True, COLOR_UI_TEXT)
         surface.blit(name_text, (x, panel_y))
 
         # HP
         hp_text = self.font_medium.render(
-            f"HP: {int(entity.hp)} / {entity.max_hp}", True, COLOR_HP_BAR_FULL
+            t('hud.hp', current=int(entity.hp), max=entity.max_hp), True, COLOR_HP_BAR_FULL
         )
         surface.blit(hp_text, (x, panel_y + 28))
 
         # Щит
         if entity.max_shield > 0:
             shield_text = self.font_medium.render(
-                f"Shield: {int(entity.shield)} / {entity.max_shield}", True, COLOR_SHIELD_BAR
+                t('hud.shield', current=int(entity.shield), max=entity.max_shield), True, COLOR_SHIELD_BAR
             )
             surface.blit(shield_text, (x, panel_y + 48))
 
@@ -232,13 +234,13 @@ class HUD:
         if entity.is_unit:
             stats_x = self.panel_x + 240
             dmg_text = self.font_small.render(
-                f"DMG: {entity.attack_damage}  RNG: {entity.attack_range}  SPD: {int(entity.speed)}",
+                t('hud.dmg_rng_spd', dmg=entity.attack_damage, rng=entity.attack_range, spd=int(entity.speed)),
                 True, COLOR_UI_TEXT_DIM
             )
             surface.blit(dmg_text, (stats_x, panel_y + 5))
 
             stance_text = self.font_small.render(
-                f"Stance: {entity.stance}", True, COLOR_UI_TEXT_DIM
+                t('hud.stance', stance=t(f'stance.{entity.stance}')), True, COLOR_UI_TEXT_DIM
             )
             surface.blit(stance_text, (stats_x, panel_y + 25))
 
@@ -310,7 +312,7 @@ class HUD:
         y = panel_y
 
         header = self.font_medium.render(
-            f"Selected: {len(entities)} units", True, COLOR_UI_TEXT
+            t('hud.selected', count=len(entities)), True, COLOR_UI_TEXT
         )
         surface.blit(header, (x, y))
         y += 24

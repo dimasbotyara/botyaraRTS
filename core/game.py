@@ -25,6 +25,7 @@ from ui.ping_system import PingSystem
 from entities.building import Headquarters, SupplyDepot
 from entities.worker import Worker
 from rendering.render_manager import RenderManager
+from localization import t, t_unit, t_building, needs_language_selection, set_lang
 
 
 # Состояния игры
@@ -149,6 +150,9 @@ class Game:
         self.running = True
         self.state = STATE_MENU
         self.game_state = None
+
+        # Экран выбора языка (первый запуск)
+        self._show_lang_select = needs_language_selection()
         self.clock = pygame.time.Clock()
 
         # Шрифты
@@ -177,6 +181,13 @@ class Game:
             dt = min(dt, 0.05)
 
             events = pygame.event.get()
+
+            if self._show_lang_select:
+                self.menu_time += dt
+                self._update_lang_select(events)
+                self._render_lang_select()
+                pygame.display.flip()
+                continue
 
             if self.state == STATE_MENU:
                 self.menu_time += dt
@@ -257,7 +268,7 @@ class Game:
 
         # Подзаголовок
         sub = self.menu_font_small.render(
-            "A Sci-Fi Real-Time Strategy Game", True, COLOR_UI_TEXT_DIM
+            t('menu.subtitle'), True, COLOR_UI_TEXT_DIM
         )
         self.screen.blit(sub, (self.screen_w // 2 - sub.get_width() // 2, 140))
 
@@ -275,7 +286,7 @@ class Game:
         start_y = self.screen_h // 2 - 40
         mouse_pos = pygame.mouse.get_pos()
 
-        labels = ['▶  Singleplayer', '🌐  Multiplayer', '⚙  Settings', '✕  Quit']
+        labels = [t('menu.singleplayer'), t('menu.multiplayer'), t('menu.settings'), t('menu.quit')]
         btn_colors = [
             (0, 120, 200),
             (0, 100, 160),
@@ -309,7 +320,7 @@ class Game:
             ))
 
         # Версия и подсказки
-        ver = self.menu_font_small.render("v0.1.0 alpha  |  Press Enter for quick start",
+        ver = self.menu_font_small.render(t('menu.version_hint'),
                                           True, COLOR_UI_TEXT_DIM)
         self.screen.blit(ver, (self.screen_w // 2 - ver.get_width() // 2,
                                self.screen_h - 40))
@@ -380,21 +391,21 @@ class Game:
         pygame.event.pump()
 
     def _start_singleplayer(self):
-        self._show_loading_step(0.05, "Initializing Quantum Core...")
+        self._show_loading_step(0.05, t('loading.quantum_core'))
         seed = random.randint(0, 999999)
 
-        self._show_loading_step(0.20, "Generating 320x320 Terrain Grid...")
+        self._show_loading_step(0.20, t('loading.terrain'))
         self.game_state = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=0)
         self.game_state.clock = self.clock
 
-        self._show_loading_step(0.65, "Deploying Player Headquarters & Field Units...")
+        self._show_loading_step(0.65, t('loading.deploy_units'))
         self._spawn_starting_units(0)
 
-        self._show_loading_step(0.85, "Establishing Enemy Outpost...")
+        self._show_loading_step(0.85, t('loading.enemy_outpost'))
         self._spawn_ai_units(1)
         self.total_players = 1
 
-        self._show_loading_step(1.00, "Battle Operations Ready!")
+        self._show_loading_step(1.00, t('loading.ready'))
         time.sleep(0.2)
         self.match_start_countdown = 3.5  # 3... 2... 1... BATTLE START!
         self.state = STATE_PLAYING
@@ -505,6 +516,23 @@ class Game:
         keys = pygame.key.get_pressed()
         mouse_pos = pygame.mouse.get_pos()
         gs.camera.update(dt, keys, mouse_pos)
+
+        # === Авто-повтор ПКМ (как в Dota 2) ===
+        if game_settings.get('rmb_auto_repeat') and pygame.mouse.get_pressed()[2]:
+            if not hasattr(self, '_rmb_repeat_timer'):
+                self._rmb_repeat_timer = 0
+            self._rmb_repeat_timer += dt
+            if self._rmb_repeat_timer >= 0.1:  # каждые 100мс
+                self._rmb_repeat_timer = 0
+                if not gs.command_system.build_mode and \
+                   not gs.upgrade_system.is_choosing and \
+                   not gs.minimap.is_point_on_minimap(*mouse_pos) and \
+                   not gs.hud.is_point_on_panel(*mouse_pos):
+                    gs.selection._handle_right_click(
+                        mouse_pos, gs.camera, gs, keys
+                    )
+        else:
+            self._rmb_repeat_timer = 0
 
         if hasattr(self, 'match_start_countdown') and self.match_start_countdown > 0:
             self.match_start_countdown -= dt
@@ -927,12 +955,12 @@ class Game:
 
         cx = self.screen_w // 2
         cy = self.screen_h // 2 - 40
-        t = self.match_start_countdown
+        ct = self.match_start_countdown
 
-        if t > 0.6:
-            num = int(t)
+        if ct > 0.6:
+            num = int(ct)
             num_str = str(num)
-            scale_pulse = 1.0 + (t - math.floor(t)) * 0.25
+            scale_pulse = 1.0 + (ct - math.floor(ct)) * 0.25
             font_size = int(110 * scale_pulse)
             try:
                 font = pygame.font.Font(None, font_size)
@@ -950,14 +978,14 @@ class Game:
             pygame.draw.circle(self.screen, txt_color, (cx, cy), r, 3)
 
         else:
-            scale_pulse = 1.0 + (0.6 - t) * 0.4
+            scale_pulse = 1.0 + (0.6 - ct) * 0.4
             font_size = int(72 * scale_pulse)
             try:
                 font = pygame.font.Font(None, font_size)
             except Exception:
                 font = pygame.font.SysFont('arial', font_size, bold=True)
 
-            text_str = "BATTLE START!"
+            text_str = t('countdown.battle_start')
             shadow = font.render(text_str, True, (0, 0, 0))
             self.screen.blit(shadow, (cx - shadow.get_width() // 2 + 3, cy - shadow.get_height() // 2 + 3))
 
@@ -1036,7 +1064,7 @@ class Game:
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
 
-        title = self.menu_font_large.render("⏸ PAUSED", True, COLOR_UI_TEXT)
+        title = self.menu_font_large.render(t('pause.title'), True, COLOR_UI_TEXT)
         self.screen.blit(title, (self.screen_w // 2 - title.get_width() // 2, 80))
 
         cx = self.screen_w // 2
@@ -1049,10 +1077,10 @@ class Game:
         needed = self.total_players
 
         labels = [
-            f"▶ Continue ({votes}/{needed})",
-            "⚙ Settings",
-            "🏠 Main Menu",
-            "✕ Quit"
+            f"{t('pause.continue')} ({votes}/{needed})",
+            t('pause.settings'),
+            t('pause.main_menu'),
+            t('pause.quit')
         ]
 
         for i, label in enumerate(labels):
@@ -1112,34 +1140,41 @@ class Game:
                     opt_rect = pygame.Rect(450 + j * 85, iy + 5, 75, 28)
                     if opt_rect.collidepoint(x, y):
                         game_settings.set(item['key'], option)
+                        if item['key'] == 'language' and option in ('en', 'ru'):
+                            set_lang(option)
 
     def _get_settings_items(self):
         return [
-            {'label': '─── Display ───', 'type': 'header'},
-            {'label': 'Fullscreen', 'key': 'fullscreen', 'type': 'toggle'},
-            {'label': 'V-Sync', 'key': 'vsync', 'type': 'toggle'},
-            {'label': 'FPS Limit', 'key': 'fps_limit', 'type': 'choice',
+            {'label': t('settings.header_display'), 'type': 'header'},
+            {'label': t('settings.fullscreen'), 'key': 'fullscreen', 'type': 'toggle'},
+            {'label': t('settings.vsync'), 'key': 'vsync', 'type': 'toggle'},
+            {'label': t('settings.fps_limit'), 'key': 'fps_limit', 'type': 'choice',
              'options': [30, 60, 120, 0]},
-            {'label': '─── Camera ───', 'type': 'header'},
-            {'label': 'Edge Scrolling', 'key': 'edge_scrolling', 'type': 'toggle'},
-            {'label': 'Invert Zoom', 'key': 'invert_zoom', 'type': 'toggle'},
-            {'label': 'Lock Mouse', 'key': 'lock_mouse', 'type': 'toggle'},
-            {'label': '─── Interface ───', 'type': 'header'},
-            {'label': 'HP Bars', 'key': 'hp_bar_mode', 'type': 'choice',
+            {'label': t('settings.header_camera'), 'type': 'header'},
+            {'label': t('settings.edge_scrolling'), 'key': 'edge_scrolling', 'type': 'toggle'},
+            {'label': t('settings.invert_zoom'), 'key': 'invert_zoom', 'type': 'toggle'},
+            {'label': t('settings.lock_mouse'), 'key': 'lock_mouse', 'type': 'toggle'},
+            {'label': t('settings.header_interface'), 'type': 'header'},
+            {'label': t('settings.hp_bars'), 'key': 'hp_bar_mode', 'type': 'choice',
              'options': ['always', 'damaged', 'selected', 'alt']},
-            {'label': 'Grid Overlay', 'key': 'show_grid', 'type': 'choice',
+            {'label': t('settings.grid_overlay'), 'key': 'show_grid', 'type': 'choice',
              'options': ['never', 'building', 'always']},
-            {'label': '─── Audio ───', 'type': 'header'},
-            {'label': 'Sound When Minimized', 'key': 'minimize_sound', 'type': 'toggle'},
-            {'label': '─── Network ───', 'type': 'header'},
-            {'label': 'Show Net Stats', 'key': 'show_net_graph', 'type': 'toggle'},
-            {'label': 'Auto Pause Desync', 'key': 'auto_pause_desync', 'type': 'toggle'},
+            {'label': t('settings.header_gameplay'), 'type': 'header'},
+            {'label': t('settings.rmb_auto_repeat'), 'key': 'rmb_auto_repeat', 'type': 'toggle'},
+            {'label': t('settings.header_audio'), 'type': 'header'},
+            {'label': t('settings.minimize_sound'), 'key': 'minimize_sound', 'type': 'toggle'},
+            {'label': t('settings.header_network'), 'type': 'header'},
+            {'label': t('settings.net_stats'), 'key': 'show_net_graph', 'type': 'toggle'},
+            {'label': t('settings.auto_pause_desync'), 'key': 'auto_pause_desync', 'type': 'toggle'},
+            {'label': t('settings.header_language'), 'type': 'header'},
+            {'label': t('settings.language'), 'key': 'language', 'type': 'choice',
+             'options': ['en', 'ru']},
         ]
 
     def _render_settings(self):
         self.screen.fill(COLOR_BG)
 
-        title = self.menu_font_large.render("⚙ Settings", True, (0, 180, 255))
+        title = self.menu_font_large.render(t('settings.title'), True, (0, 180, 255))
         self.screen.blit(title, (self.screen_w // 2 - title.get_width() // 2, 25))
 
         # Кнопка Back
@@ -1149,7 +1184,7 @@ class Game:
         pygame.draw.rect(self.screen, (0, 100, 160) if back_hover else (30, 40, 55),
                          back_rect, border_radius=6)
         pygame.draw.rect(self.screen, (60, 80, 100), back_rect, 1, border_radius=6)
-        back_text = self.menu_font_small.render("← Back", True, COLOR_UI_TEXT)
+        back_text = self.menu_font_small.render(t('settings.back'), True, COLOR_UI_TEXT)
         self.screen.blit(back_text, (back_rect.x + 15, back_rect.y + 10))
 
         # Настройки
@@ -1216,10 +1251,10 @@ class Game:
 
         if result == 'victory':
             color = (0, 255, 120)
-            text = "🏆 VICTORY!"
+            text = t('gameover.victory')
         else:
             color = (255, 60, 60)
-            text = "💀 DEFEAT"
+            text = t('gameover.defeat')
 
         title = self.menu_font_large.render(text, True, color)
         self.screen.blit(title, (self.screen_w // 2 - title.get_width() // 2,
@@ -1232,10 +1267,10 @@ class Game:
                 mins = int(gs.game_time // 60)
                 secs = int(gs.game_time % 60)
                 stats = [
-                    f"Time: {mins}m {secs}s",
-                    f"Titan: {player.total_titan_mined} | Plasma: {player.total_plasma_mined}",
-                    f"Units: {player.units_produced} built | {player.units_lost} lost",
-                    f"Buildings: {player.buildings_built} built | {player.buildings_lost} lost",
+                    t('gameover.time', mins=mins, secs=secs),
+                    t('gameover.titan_plasma', titan=player.total_titan_mined, plasma=player.total_plasma_mined),
+                    t('gameover.units_stats', produced=player.units_produced, lost=player.units_lost),
+                    t('gameover.buildings_stats', built=player.buildings_built, lost=player.buildings_lost),
                 ]
                 for i, stat in enumerate(stats):
                     text = self.menu_font_small.render(stat, True, COLOR_UI_TEXT_DIM)
@@ -1243,11 +1278,68 @@ class Game:
                                            self.screen_h // 2 + i * 28))
 
         hint = self.menu_font_small.render(
-            "Click anywhere to return to menu", True, COLOR_UI_TEXT_DIM
+            t('gameover.click_hint'), True, COLOR_UI_TEXT_DIM
         )
         self.screen.blit(hint, (self.screen_w // 2 - hint.get_width() // 2,
                                 self.screen_h - 60))
 
+    # ========================================
+    # LANGUAGE SELECTION
+    # ========================================
+
+    def _update_lang_select(self, events):
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                cx = self.screen_w // 2
+                btn_w = 300
+                btn_h = 70
+                start_y = self.screen_h // 2 - 30
+                # English
+                rect_en = pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h)
+                if rect_en.collidepoint(event.pos):
+                    set_lang('en')
+                    self._show_lang_select = False
+                # Russian
+                rect_ru = pygame.Rect(cx - btn_w // 2, start_y + 90, btn_w, btn_h)
+                if rect_ru.collidepoint(event.pos):
+                    set_lang('ru')
+                    self._show_lang_select = False
+
+    def _render_lang_select(self):
+        self.screen.fill(COLOR_BG)
+        self._render_starfield()
+
+        cx = self.screen_w // 2
+
+        # Title
+        title = self.menu_font_large.render(
+            "Select Language / Выберите язык", True, (0, 200, 255)
+        )
+        self.screen.blit(title, (cx - title.get_width() // 2, self.screen_h // 2 - 140))
+
+        btn_w = 300
+        btn_h = 70
+        start_y = self.screen_h // 2 - 30
+        mouse_pos = pygame.mouse.get_pos()
+
+        langs = [
+            ('🇬🇧  English', 'en'),
+            ('🇷🇺  Русский', 'ru'),
+        ]
+        for i, (label, _) in enumerate(langs):
+            rect = pygame.Rect(cx - btn_w // 2, start_y + i * 90, btn_w, btn_h)
+            hovered = rect.collidepoint(mouse_pos)
+            color = (0, 120, 200) if hovered else (30, 45, 60)
+            pygame.draw.rect(self.screen, color, rect, border_radius=12)
+            pygame.draw.rect(self.screen, (0, 150, 220), rect, 2, border_radius=12)
+
+            text = self.menu_font_medium.render(label, True, COLOR_UI_TEXT)
+            self.screen.blit(text, (
+                rect.centerx - text.get_width() // 2,
+                rect.centery - text.get_height() // 2
+            ))
 
 # ========================================
 # Утилита для цветов (используется в меню)

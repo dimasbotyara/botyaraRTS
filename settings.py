@@ -174,6 +174,10 @@ class Settings:
             # Gameplay / Combat
             'auto_attack_mode': 'all',  # 'all' (юниты и постройки), 'units_only' (только юниты), 'never' (выключена)
             'move_hold_fire': True,     # True: при обычном движении (ПКМ) юниты не отвлекаются на врагов
+            'rmb_auto_repeat': False,   # True: зажатие ПКМ автоповтор приказов (как в Dota 2)
+
+            # Localization
+            'language': '',  # '' = не выбран (покажет экран выбора), 'en', 'ru'
 
             # UI
             'hp_bar_mode': 'damaged',  # always/damaged/selected/alt

@@ -396,8 +396,13 @@ class Unit(Entity):
             path = find_path(tilemap, start_tx, start_ty, end_tx, end_ty)
             if path:
                 path = smooth_path(path, tilemap)
+                # Пропускаем первый waypoint если юнит уже на этом тайле,
+                # чтобы юнит не шёл назад к центру текущего тайла при быстром ПКМ
+                skip = 0
+                if len(path) > 1 and path[0] == (start_tx, start_ty):
+                    skip = 1
                 self.path = path
-                self.path_index = 0
+                self.path_index = skip
                 self.state = 'MOVE'
                 self.attack_target = None
                 self.move_target = (world_x, world_y)
