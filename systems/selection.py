@@ -6,6 +6,20 @@ import pygame
 import time
 from settings import *
 
+def is_shift_held(keys=None):
+    """Проверить, зажат ли Shift (через моды клавиатуры или массив клавиш)."""
+    try:
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            return True
+    except Exception:
+        pass
+    if keys:
+        try:
+            return bool(keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT])
+        except (IndexError, KeyError, TypeError):
+            pass
+    return False
+
 
 class SelectionSystem:
     """Управление выделением юнитов и зданий."""
@@ -127,14 +141,22 @@ class SelectionSystem:
             return
 
         # Shift — добавить/убрать из выделения
-        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        shift_held = is_shift_held(keys)
 
         if clicked_entity:
             if shift_held:
                 if clicked_entity in self.selected_entities:
                     self._deselect(clicked_entity)
                 else:
-                    self._add_to_selection(clicked_entity)
+                    # При зажатом Shift добавляем своего юнита в текущую группу
+                    if clicked_entity.player_id == game_state.local_player_id:
+                        # Если были выделены здания, очищаем их перед добавлением юнита
+                        buildings_in_sel = [e for e in self.selected_entities if e.is_building]
+                        for b in buildings_in_sel:
+                            self._deselect(b)
+                        self._add_to_selection(clicked_entity)
+                    else:
+                        self._select_single(clicked_entity)
             else:
                 self._select_single(clicked_entity)
         else:
@@ -146,7 +168,7 @@ class SelectionSystem:
         if not self.selected_entities:
             return
 
-        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        shift_held = is_shift_held(keys)
         world_x, world_y = camera.screen_to_world(*pos)
         target_entity = self._find_entity_at(world_x, world_y, game_state)
 
@@ -209,7 +231,7 @@ class SelectionSystem:
 
         world_rect = pygame.Rect(wx1, wy1, wx2 - wx1, wy2 - wy1)
 
-        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        shift_held = is_shift_held(keys)
 
         if not shift_held:
             self.clear_selection()
