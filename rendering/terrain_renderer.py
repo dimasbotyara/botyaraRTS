@@ -36,8 +36,7 @@ class TerrainRenderer:
         for ty in range(self.tilemap.height):
             for tx in range(self.tilemap.width):
                 tile = self.tilemap.get_tile(tx, ty)
-                height = self.tilemap.get_height(tx, ty)
-
+                
                 details = []
 
                 if tile == TILE_GROUND:
@@ -155,17 +154,15 @@ class TerrainRenderer:
         else:
             base = SciFiPalette.GROUND_LIGHT
 
+        # Плавные крупноразмерные органические пятна на несколько тайлов сразу (едва заметный оттенок)
+        noise_val = math.sin(tx * 0.12) * math.cos(ty * 0.14) + math.sin((tx + ty) * 0.07)
+        if noise_val > 0.65:
+            base = darken(base, 2)
+        elif noise_val < -0.65:
+            base = brighten(base, 2)
+
         # Рисуем основу
         pygame.draw.rect(surface, base, (sx, sy, size, size))
-
-        # Лёгкая текстура — перепад яркости для «зернистости»
-        if size >= 8:
-            half = size // 2
-            shade = darken(base, 5)
-            # Четвертинки разного оттенка
-            if (tx + ty) % 2 == 0:
-                pygame.draw.rect(surface, shade, (sx, sy, half, half))
-                pygame.draw.rect(surface, shade, (sx + half, sy + half, half, half))
 
         # Граница высоты — тёмная линия для объёма
         if height > 0:

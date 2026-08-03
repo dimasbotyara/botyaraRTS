@@ -31,6 +31,10 @@ class Camera:
         self.zoom_speed = game_settings.get('zoom_sensitivity')
         self.invert_zoom = game_settings.get('invert_zoom')
 
+        # Перетаскивание колесиком мыши (MMB Drag)
+        self.is_mmb_dragging = False
+        self.drag_last_pos = None
+
         # Для плавного перехода (при клике на миникарту)
         self.target_x = None
         self.target_y = None
@@ -39,34 +43,36 @@ class Camera:
     def update(self, dt, keys_pressed, mouse_pos):
         """Обновить камеру каждый кадр."""
         dx, dy = 0.0, 0.0
-        speed = self.speed / self.zoom  # Скорость зависит от зума
+        base_speed = self.speed / self.zoom
 
-        # Клавиатурный скролл
-        bindings = game_settings.get('keybindings')
-        if keys_pressed[bindings.get('camera_up', pygame.K_UP)] or \
-           keys_pressed[bindings.get('camera_up_alt', pygame.K_w)]:
-            dy -= speed
-        if keys_pressed[bindings.get('camera_down', pygame.K_DOWN)] or \
-           keys_pressed[bindings.get('camera_down_alt', pygame.K_s)]:
-            dy += speed
-        if keys_pressed[bindings.get('camera_left', pygame.K_LEFT)] or \
-           keys_pressed[bindings.get('camera_left_alt', pygame.K_a)]:
-            dx -= speed
-        if keys_pressed[bindings.get('camera_right', pygame.K_RIGHT)] or \
-           keys_pressed[bindings.get('camera_right_alt', pygame.K_d)]:
-            dx += speed
+        kbd_mult = game_settings.get('camera_keyboard_speed') or 1.0
+        edge_mult = game_settings.get('camera_edge_speed') or 1.0
 
-        # Edge scrolling
+        kbd_speed = base_speed * kbd_mult
+        edge_speed = base_speed * edge_mult
+
+        # Клавиатурный скролл (Стрелочки)
+        bindings = game_settings.get('keybindings') or {}
+        if keys_pressed[bindings.get('camera_up', pygame.K_UP)]:
+            dy -= kbd_speed
+        if keys_pressed[bindings.get('camera_down', pygame.K_DOWN)]:
+            dy += kbd_speed
+        if keys_pressed[bindings.get('camera_left', pygame.K_LEFT)]:
+            dx -= kbd_speed
+        if keys_pressed[bindings.get('camera_right', pygame.K_RIGHT)]:
+            dx += kbd_speed
+
+        # Edge scrolling (краем экрана)
         if self.edge_scrolling and mouse_pos:
             mx, my = mouse_pos
             if mx <= self.edge_margin:
-                dx -= speed * (1 - mx / self.edge_margin)
+                dx -= edge_speed * (1 - mx / self.edge_margin)
             elif mx >= self.screen_w - self.edge_margin:
-                dx += speed * (1 - (self.screen_w - mx) / self.edge_margin)
+                dx += edge_speed * (1 - (self.screen_w - mx) / self.edge_margin)
             if my <= self.edge_margin:
-                dy -= speed * (1 - my / self.edge_margin)
+                dy -= edge_speed * (1 - my / self.edge_margin)
             elif my >= self.screen_h - self.edge_margin:
-                dy += speed * (1 - (self.screen_h - my) / self.edge_margin)
+                dy += edge_speed * (1 - (self.screen_h - my) / self.edge_margin)
 
         # Применяем инерцию
         if dx != 0 or dy != 0:
@@ -106,22 +112,50 @@ class Camera:
         # Ограничение границ карты
         self.clamp()
 
+    def handle_mouse_down(self, pos, button):
+        """Обработка зажатия колесика мыши (MMB)."""
+        if button == 2:  # Средняя кнопка мыши / нажатие колесика
+            self.is_mmb_dragging = True
+            self.drag_last_pos = pos
+            return True
+        return False
+
+    def handle_mouse_up(self, button):
+        """Обработка отпускания колесика мыши (MMB)."""
+        if button == 2:
+            self.is_mmb_dragging = False
+            self.drag_last_pos = None
+            return True
+        return False
+
+    def handle_mouse_motion(self, pos):
+        """Обработка движения мыши при скролле колесиком (MMB Drag)."""
+        if self.is_mmb_dragging and self.drag_last_pos:
+            mmb_mult = game_settings.get('camera_mmb_speed') or 1.0
+            dx = pos[0] - self.drag_last_pos[0]
+            dy = pos[1] - self.drag_last_pos[1]
+            self.x -= (dx / self.zoom) * mmb_mult
+            self.y -= (dy / self.zoom) * mmb_mult
+            self.drag_last_pos = pos
+            self.clamp()
+            return True
+        return False
+
     def handle_zoom(self, direction, mouse_pos):
         """Зум колесиком мыши. direction: +1 приближение, -1 отдаление."""
         if self.invert_zoom:
             direction = -direction
 
+        zoom_sens = game_settings.get('zoom_sensitivity') or 0.1
         old_zoom = self.target_zoom
-        self.target_zoom += direction * self.zoom_speed
+        self.target_zoom += direction * zoom_sens
         self.target_zoom = max(CAMERA_ZOOM_MIN, min(CAMERA_ZOOM_MAX, self.target_zoom))
 
         # Зумим в точку под мышкой
         if mouse_pos and old_zoom != self.target_zoom:
             mx, my = mouse_pos
-            # Мировые координаты под мышью до зума
             world_x = self.x + mx / old_zoom
             world_y = self.y + my / old_zoom
-            # Новая позиция камеры чтобы мировая точка осталась под мышью
             self.x = world_x - mx / self.target_zoom
             self.y = world_y - my / self.target_zoom
 

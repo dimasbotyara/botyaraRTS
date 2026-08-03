@@ -133,10 +133,6 @@ DEFAULT_KEYBINDINGS = {
     'camera_down': pygame.K_DOWN,
     'camera_left': pygame.K_LEFT,
     'camera_right': pygame.K_RIGHT,
-    'camera_up_alt': pygame.K_w,
-    'camera_down_alt': pygame.K_s,
-    'camera_left_alt': pygame.K_a,
-    'camera_right_alt': pygame.K_d,
     'select_all_same': pygame.K_q,
     'ability_1': pygame.K_q,
     'ability_2': pygame.K_w,
@@ -166,9 +162,12 @@ class Settings:
             'fps_limit': 60,
             'vsync': False,
 
-            # Camera
+            # Camera & Sensitivities
             'edge_scrolling': True,
             'camera_speed': CAMERA_SPEED,
+            'camera_keyboard_speed': 1.0,  # Чувствительность стрелок клавиатуры
+            'camera_edge_speed': 1.0,      # Чувствительность скролла краем экрана (Edge scroll)
+            'camera_mmb_speed': 1.0,       # Чувствительность перетаскивания колесиком мыши (MMB)
             'camera_inertia': CAMERA_INERTIA,
             'zoom_sensitivity': CAMERA_ZOOM_SPEED,
             'invert_zoom': False,

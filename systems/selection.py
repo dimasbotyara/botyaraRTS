@@ -146,26 +146,28 @@ class SelectionSystem:
         if not self.selected_entities:
             return
 
+        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
         world_x, world_y = camera.screen_to_world(*pos)
         target_entity = self._find_entity_at(world_x, world_y, game_state)
 
-        # Проверяем только свои юниты
+        # Проверяем только свои юниты и здания
         own_units = [e for e in self.selected_entities
                      if e.is_unit and e.player_id == game_state.local_player_id]
         own_buildings = [e for e in self.selected_entities
                          if e.is_building and e.player_id == game_state.local_player_id]
 
+        # Rally point для зданий ставится ВСЕГДА при ПКМ по миру/минералам
+        for building in own_buildings:
+            if building.can_produce:
+                building.set_rally_point(world_x, world_y)
+
         if target_entity:
             if target_entity.player_id != game_state.local_player_id:
                 # Вражеский объект — атака
                 for unit in own_units:
-                    unit.attack_target_entity(target_entity)
-            else:
-                # Свой объект — ??? (ремонт, загрузка в транспорт)
-                pass
+                    unit.attack_target_entity(target_entity, shift=shift_held)
         else:
-            # Клик по земле
-            # Проверяем ресурсы
+            # Клик по земле или ресурсу
             tile_x = int(world_x // TILE_SIZE)
             tile_y = int(world_y // TILE_SIZE)
             tile = game_state.tilemap.get_tile(tile_x, tile_y)
@@ -177,9 +179,9 @@ class SelectionSystem:
                 # Отправляем рабочих на добычу
                 for unit in own_units:
                     if isinstance(unit, Worker):
-                        unit.command_harvest(tile_x, tile_y)
+                        unit.command_harvest(tile_x, tile_y, shift=shift_held)
                     else:
-                        unit.move_to_point(world_x, world_y, game_state.tilemap)
+                        unit.move_to_point(world_x, world_y, game_state.tilemap, shift=shift_held)
             else:
                 # Приказ движения
                 for unit in own_units:

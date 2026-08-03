@@ -99,9 +99,20 @@ class Building(Entity):
         if hasattr(game_state, 'add_entity'):
             game_state.add_entity(unit)
 
-        # Отправляем к rally point
+        # Отправляем к rally point (если на ресурсе — рабочий сразу начинает добычу)
         if self.rally_point:
-            unit.move_to_point(self.rally_point[0], self.rally_point[1], game_state.tilemap)
+            rx, ry = self.rally_point
+            tile_x = int(rx // TILE_SIZE)
+            tile_y = int(ry // TILE_SIZE)
+            tile = game_state.tilemap.get_tile(tile_x, tile_y)
+
+            from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
+            from entities.worker import Worker
+
+            if tile in (TILE_TITAN_ORE, TILE_PLASMA_GEYSER) and isinstance(unit, Worker):
+                unit.command_harvest(tile_x, tile_y)
+            else:
+                unit.move_to_point(rx, ry, game_state.tilemap)
 
     def _update_auto_attack(self, dt, game_state):
         """Автоматическая стрельба (турели)."""

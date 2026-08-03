@@ -141,15 +141,17 @@ class HUD:
             # Группа юнитов
             self._render_group_info(surface, selected_entities, panel_y)
 
-    def _render_build_tabs(self, surface, game_state, panel_y):
+    def _render_build_tabs(self, surface, game_state, panel_y, start_x=None):
         """Вкладки строительства."""
+        if start_x is None:
+            start_x = self.panel_x + 15
         self.tab_rects = []
-        tab_x = self.panel_x + 15
-        tab_width = 120
-        tab_height = 28
+        tab_x = start_x
+        tab_width = 100
+        tab_height = 26
 
         for i, tab_name in enumerate(self.build_tabs):
-            rect = pygame.Rect(tab_x + i * (tab_width + 6), panel_y, tab_width, tab_height)
+            rect = pygame.Rect(tab_x + i * (tab_width + 4), panel_y, tab_width, tab_height)
             self.tab_rects.append(rect)
 
             color = COLOR_UI_ACCENT if i == self.current_tab else COLOR_UI_PANEL
@@ -157,15 +159,15 @@ class HUD:
             pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
             text = self.font_small.render(tab_name, True, COLOR_UI_TEXT)
-            surface.blit(text, (rect.x + 6, rect.y + 6))
+            surface.blit(text, (rect.x + 4, rect.y + 5))
 
         # Кнопки зданий текущей вкладки
         self.action_buttons = []
         category = self.build_tab_keys[self.current_tab]
         buildings = ALL_BUILDINGS.get(category, [])
 
-        btn_y = panel_y + 40
-        btn_x = self.panel_x + 15
+        btn_y = panel_y + 36
+        btn_x = start_x
 
         player = game_state.players.get(game_state.local_player_id)
 
@@ -221,7 +223,12 @@ class HUD:
             )
             surface.blit(shield_text, (x, panel_y + 48))
 
-        # Для юнитов — статы
+        # Для рабочего — отображаем кнопки строительства на панели справа
+        if getattr(entity, 'can_build', False) or getattr(entity, 'name', '') == 'Worker':
+            self._render_build_tabs(surface, game_state, panel_y, start_x=self.panel_x + 180)
+            return
+
+        # Для остальных юнитов — статы
         if entity.is_unit:
             stats_x = self.panel_x + 240
             dmg_text = self.font_small.render(

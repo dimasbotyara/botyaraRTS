@@ -396,6 +396,7 @@ class Game:
 
         self._show_loading_step(1.00, "Battle Operations Ready!")
         time.sleep(0.2)
+        self.match_start_countdown = 3.5  # 3... 2... 1... BATTLE START!
         self.state = STATE_PLAYING
 
     def _start_lobby(self):
@@ -425,12 +426,46 @@ class Game:
         depot.construction_progress = depot.build_time
         gs.add_entity(depot)
 
+        # Поиск ближайших ресурсов для авто-добычи
+        from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
+        titan_tiles = []
+        plasma_tiles = []
+
+        for ty in range(max(0, sy - 25), min(gs.tilemap.height, sy + 25)):
+            for tx in range(max(0, sx - 25), min(gs.tilemap.width, sx + 25)):
+                t = gs.tilemap.get_tile(tx, ty)
+                if t == TILE_TITAN_ORE:
+                    dist = (tx - sx) ** 2 + (ty - sy) ** 2
+                    titan_tiles.append((dist, tx, ty))
+                elif t == TILE_PLASMA_GEYSER:
+                    dist = (tx - sx) ** 2 + (ty - sy) ** 2
+                    plasma_tiles.append((dist, tx, ty))
+
+        titan_tiles.sort()
+        plasma_tiles.sort()
+
+        # Авто-установка Rally Point HQ на ближайший титан
+        if titan_tiles:
+            hq.set_rally_point(titan_tiles[0][1] * TILE_SIZE + 16, titan_tiles[0][2] * TILE_SIZE + 16)
+
+        # Спавним 6 рабочих
+        workers = []
         for i in range(6):
             angle = (i / 6) * math.pi * 2
             ux = wx + math.cos(angle) * TILE_SIZE * 3
             uy = wy + math.sin(angle) * TILE_SIZE * 3
             worker = Worker(ux, uy, player_id)
             gs.add_entity(worker)
+            workers.append(worker)
+
+        # Авто-назначение на добычу: 1 рабочий на плазму, остальные 5 на титан
+        if plasma_tiles and len(workers) > 0:
+            workers[0].command_harvest(plasma_tiles[0][1], plasma_tiles[0][2])
+
+        if titan_tiles:
+            for idx, w in enumerate(workers[1:]):
+                tile_info = titan_tiles[idx % len(titan_tiles)]
+                w.command_harvest(tile_info[1], tile_info[2])
 
         gs.players[player_id].recalculate_supply(gs.buildings)
         gs.players[player_id].recalculate_current_supply(gs.units)
@@ -470,6 +505,11 @@ class Game:
         keys = pygame.key.get_pressed()
         mouse_pos = pygame.mouse.get_pos()
         gs.camera.update(dt, keys, mouse_pos)
+
+        if hasattr(self, 'match_start_countdown') and self.match_start_countdown > 0:
+            self.match_start_countdown -= dt
+            if self.match_start_countdown < 0:
+                self.match_start_countdown = 0
 
         gs.game_time += dt
 
@@ -713,6 +753,10 @@ class Game:
                 gs.upgrade_picker.handle_click(event.pos, gs.upgrade_system, gs)
             return
 
+        # Зажатие колесика мыши (MMB Drag)
+        if gs.camera.handle_mouse_down(event.pos, event.button):
+            return
+
         if event.button == 1 and keys[pygame.K_LALT]:
             world_x, world_y = gs.camera.screen_to_world(*event.pos)
             ping_type = 'retreat' if keys[pygame.K_LCTRL] else 'attention'
@@ -749,12 +793,15 @@ class Game:
     def _handle_game_mouse_up(self, event):
         gs = self.game_state
         keys = pygame.key.get_pressed()
+        gs.camera.handle_mouse_up(event.button)
         if event.button == 1:
             gs.minimap.handle_release()
         gs.selection.handle_mouse_up(event.pos, event.button, gs.camera, gs, keys)
 
     def _handle_game_mouse_motion(self, event):
         gs = self.game_state
+        if gs.camera.handle_mouse_motion(event.pos):
+            return
         if gs.minimap.dragging:
             gs.minimap.handle_drag(*event.pos, gs.camera)
             return
@@ -862,6 +909,9 @@ class Game:
             pygame.draw.line(self.screen, (255, 50, 50), (mx - 15, my), (mx + 15, my), 2)
             pygame.draw.line(self.screen, (255, 50, 50), (mx, my - 15), (mx, my + 15), 2)
 
+        # ===== ОБРАТНЫЙ ОТСЧЕТ (3, 2, 1, BATTLE START!) =====
+        self._render_match_countdown()
+
         # ===== ОВЕРЛЕЙ УЛУЧШЕНИЙ =====
         if gs.upgrade_system.is_choosing:
             gs.upgrade_picker.render(self.screen, gs.upgrade_system, gs)
@@ -869,6 +919,50 @@ class Game:
         # ===== ДЕБАГ =====
         if gs.debug_mode:
             self._render_debug()
+
+    def _render_match_countdown(self):
+        """Отрисовка обратного отсчета 3... 2... 1... BATTLE START!"""
+        if not hasattr(self, 'match_start_countdown') or self.match_start_countdown <= 0:
+            return
+
+        cx = self.screen_w // 2
+        cy = self.screen_h // 2 - 40
+        t = self.match_start_countdown
+
+        if t > 0.6:
+            num = int(t)
+            num_str = str(num)
+            scale_pulse = 1.0 + (t - math.floor(t)) * 0.25
+            font_size = int(110 * scale_pulse)
+            try:
+                font = pygame.font.Font(None, font_size)
+            except Exception:
+                font = pygame.font.SysFont('arial', font_size, bold=True)
+
+            shadow = font.render(num_str, True, (0, 0, 0))
+            self.screen.blit(shadow, (cx - shadow.get_width() // 2 + 4, cy - shadow.get_height() // 2 + 4))
+
+            txt_color = (0, 220, 255) if num == 3 else ((255, 200, 0) if num == 2 else (255, 60, 60))
+            txt = font.render(num_str, True, txt_color)
+            self.screen.blit(txt, (cx - txt.get_width() // 2, cy - txt.get_height() // 2))
+
+            r = int(70 * scale_pulse)
+            pygame.draw.circle(self.screen, txt_color, (cx, cy), r, 3)
+
+        else:
+            scale_pulse = 1.0 + (0.6 - t) * 0.4
+            font_size = int(72 * scale_pulse)
+            try:
+                font = pygame.font.Font(None, font_size)
+            except Exception:
+                font = pygame.font.SysFont('arial', font_size, bold=True)
+
+            text_str = "BATTLE START!"
+            shadow = font.render(text_str, True, (0, 0, 0))
+            self.screen.blit(shadow, (cx - shadow.get_width() // 2 + 3, cy - shadow.get_height() // 2 + 3))
+
+            txt = font.render(text_str, True, (50, 255, 100))
+            self.screen.blit(txt, (cx - txt.get_width() // 2, cy - txt.get_height() // 2))
 
     def _render_debug(self):
         gs = self.game_state

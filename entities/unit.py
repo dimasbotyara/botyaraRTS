@@ -111,8 +111,9 @@ class Unit(Entity):
     def _state_move(self, dt, game_state):
         """MOVE: Двигаемся к цели."""
         if not self.path or self.path_index >= len(self.path):
-            self.state = 'IDLE'
             self.path = []
+            if not self._execute_next_queued_command():
+                self.state = 'IDLE'
             return
 
         # Получаем текущий waypoint
@@ -128,8 +129,9 @@ class Unit(Entity):
         if arrived:
             self.path_index += 1
             if self.path_index >= len(self.path):
-                self.state = 'IDLE'
                 self.path = []
+                if not self._execute_next_queued_command():
+                    self.state = 'IDLE'
 
         # В агрессивном стансе или при Attack-Move — проверяем врагов по пути
         if getattr(self, 'is_attack_move', False):
@@ -335,8 +337,37 @@ class Unit(Entity):
         self.facing_angle = math.degrees(math.atan2(dy, dx))
         return False
 
+    def _execute_next_queued_command(self):
+        """Выполнить следующий приказ из очереди Shift."""
+        if not hasattr(self, 'command_queue') or not self.command_queue:
+            return False
+
+        cmd_type, args = self.command_queue.pop(0)
+        if cmd_type == 'move':
+            world_x, world_y, tilemap, attack_move = args
+            self.move_to_point(world_x, world_y, tilemap, attack_move=attack_move, shift=False)
+            return True
+        elif cmd_type == 'attack':
+            target = args[0]
+            if target and getattr(target, 'alive', False):
+                self.attack_target_entity(target, shift=False)
+                return True
+            else:
+                return self._execute_next_queued_command()
+        elif cmd_type == 'harvest' and hasattr(self, 'command_harvest'):
+            tile_x, tile_y = args
+            self.command_harvest(tile_x, tile_y, shift=False)
+            return True
+        elif cmd_type == 'build' and hasattr(self, 'command_build'):
+            building_class, tile_x, tile_y = args
+            self.command_build(building_class, tile_x, tile_y, shift=False)
+            return True
+        return False
+
     def _return_or_idle(self):
-        """Вернуться к исходной точке или встать IDLE."""
+        """Вернуться к исходной точке или выполнить следующий приказ из очереди Shift."""
+        if self._execute_next_queued_command():
+            return
         if self.stance == 'DEFENSIVE' and self.origin_point:
             ox, oy = self.origin_point
             dist = math.sqrt((self.x - ox)**2 + (self.y - oy)**2)
@@ -346,8 +377,16 @@ class Unit(Entity):
         self.state = 'IDLE'
         self.origin_point = None
 
-    def move_to_point(self, world_x, world_y, tilemap, attack_move=False):
-        """Приказ двигаться к точке (находит путь A*)."""
+    def move_to_point(self, world_x, world_y, tilemap, attack_move=False, shift=False):
+        """Приказ двигаться к точке (находит путь A*). Поддерживает Shift-очередь."""
+        if not hasattr(self, 'command_queue'):
+            self.command_queue = []
+
+        if shift and self.state != 'IDLE':
+            self.command_queue.append(('move', (world_x, world_y, tilemap, attack_move)))
+            return True
+
+        self.command_queue.clear()
         self.is_attack_move = attack_move
         if tilemap:
             start_tx, start_ty = self.get_tile_pos()
@@ -371,8 +410,16 @@ class Unit(Entity):
         self.move_target = (world_x, world_y)
         return True
 
-    def attack_target_entity(self, target):
-        """Приказ атаковать конкретную цель."""
+    def attack_target_entity(self, target, shift=False):
+        """Приказ атаковать конкретную цель. Поддерживает Shift-очередь."""
+        if not hasattr(self, 'command_queue'):
+            self.command_queue = []
+
+        if shift and self.state != 'IDLE':
+            self.command_queue.append(('attack', (target,)))
+            return
+
+        self.command_queue.clear()
         self.attack_target = target
         self.origin_point = (self.x, self.y)
         dist = self.distance_to(target)
@@ -383,6 +430,8 @@ class Unit(Entity):
 
     def stop(self):
         """Приказ остановиться."""
+        if hasattr(self, 'command_queue'):
+            self.command_queue.clear()
         self.state = 'IDLE'
         self.path = []
         self.attack_target = None

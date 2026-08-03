@@ -210,28 +210,50 @@ class Worker(Unit):
         self.building_state = 'IDLE'
         self.build_target = None
 
-    def move_to_point(self, world_x, world_y, tilemap, attack_move=False):
+    def move_to_point(self, world_x, world_y, tilemap, attack_move=False, shift=False):
+        if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
+            if not hasattr(self, 'command_queue'):
+                self.command_queue = []
+            self.command_queue.append(('move', (world_x, world_y, tilemap, attack_move)))
+            return True
         self.stop_work()
-        return super().move_to_point(world_x, world_y, tilemap, attack_move=attack_move)
+        return super().move_to_point(world_x, world_y, tilemap, attack_move=attack_move, shift=shift)
 
-    def attack_target_entity(self, target):
+    def attack_target_entity(self, target, shift=False):
+        if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
+            if not hasattr(self, 'command_queue'):
+                self.command_queue = []
+            self.command_queue.append(('attack', (target,)))
+            return
         self.stop_work()
-        super().attack_target_entity(target)
+        super().attack_target_entity(target, shift=shift)
 
     def stop(self):
         self.stop_work()
         super().stop()
 
-    def command_harvest(self, tile_x, tile_y):
+    def command_harvest(self, tile_x, tile_y, shift=False):
         """Приказ идти добывать ресурс."""
+        if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
+            if not hasattr(self, 'command_queue'):
+                self.command_queue = []
+            self.command_queue.append(('harvest', (tile_x, tile_y)))
+            return
+
         self.stop_work()
         self.harvest_target = (tile_x, tile_y)
         self.harvest_state = 'GOING_TO_RESOURCE'
         self.state = 'IDLE'
         self.attack_target = None
 
-    def command_build(self, building):
+    def command_build(self, building, shift=False):
         """Приказ идти строить здание."""
+        if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
+            if not hasattr(self, 'command_queue'):
+                self.command_queue = []
+            self.command_queue.append(('build', (building, getattr(building, 'tile_x', 0), getattr(building, 'tile_y', 0))))
+            return
+
         self.stop_work()
         self.build_target = building
         self.building_state = 'GOING_TO_BUILD'
