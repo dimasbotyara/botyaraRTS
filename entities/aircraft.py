@@ -17,8 +17,17 @@ class AircraftUnit(Unit):
         self.is_flying = True
         self.unit_type = 'aircraft'
 
-    def move_to_point(self, world_x, world_y, tilemap):
-        """Авиация летит напрямую — без A*!"""
+    def move_to_point(self, world_x, world_y, tilemap, attack_move=False, shift=False):
+        """Авиация летит напрямую — без A*! Поддерживает Shift-очередь."""
+        if not hasattr(self, 'command_queue'):
+            self.command_queue = []
+
+        if shift and self.state != 'IDLE':
+            self.command_queue.append(('move', (world_x, world_y, tilemap, attack_move)))
+            return True
+
+        self.command_queue.clear()
+        # Летим напрямую к цели
         self.path = [(int(world_x // TILE_SIZE), int(world_y // TILE_SIZE))]
         self.path_index = 0
         self.state = 'MOVE'
