@@ -96,9 +96,14 @@ class TerrainRenderer:
         self.anim_time += dt
 
     def render(self, surface, camera):
-        """Отрисовка видимых тайлов."""
+        """Отрисовка видимых тайлов с кэшированием статического ландшафта."""
         start_x, start_y, end_x, end_y = camera.get_visible_tiles()
         zoom = camera.zoom
+
+        # Сбрасываем кэш при смене зума
+        if abs(self.cache_zoom - zoom) > 0.001:
+            self.tile_cache.clear()
+            self.cache_zoom = zoom
 
         for ty in range(start_y, end_y):
             for tx in range(start_x, end_x):
@@ -110,22 +115,31 @@ class TerrainRenderer:
                 if size < 1:
                     continue
 
-                # Отрисовка тайла
-                self._render_tile(surface, tx, ty, int(sx), int(sy), size, zoom)
+                tile = self.tilemap.get_tile(tx, ty)
+
+                # Статические тайлы кэшируются
+                if tile in (TILE_GROUND, TILE_WALL, TILE_RAMP):
+                    cache_key = (tx, ty, size)
+                    tile_surf = self.tile_cache.get(cache_key)
+                    if tile_surf is None:
+                        tile_surf = pygame.Surface((size, size))
+                        height = self.tilemap.get_height(tx, ty)
+                        if tile == TILE_GROUND:
+                            self._render_ground(tile_surf, tx, ty, 0, 0, size, height, zoom)
+                        elif tile == TILE_WALL:
+                            self._render_wall(tile_surf, tx, ty, 0, 0, size, height, zoom)
+                        elif tile == TILE_RAMP:
+                            self._render_ramp(tile_surf, tx, ty, 0, 0, size, height, zoom)
+                        self.tile_cache[cache_key] = tile_surf
+                    surface.blit(tile_surf, (int(sx), int(sy)))
+                else:
+                    self._render_tile(surface, tx, ty, int(sx), int(sy), size, zoom)
 
     def _render_tile(self, surface, tx, ty, sx, sy, size, zoom):
-        """Отрисовка одного тайла."""
+        """Отрисовка динамических тайлов (анимированная вода, ресурсы)."""
         tile = self.tilemap.get_tile(tx, ty)
-        height = self.tilemap.get_height(tx, ty)
-
-        if tile == TILE_GROUND:
-            self._render_ground(surface, tx, ty, sx, sy, size, height, zoom)
-        elif tile == TILE_WALL:
-            self._render_wall(surface, tx, ty, sx, sy, size, height, zoom)
-        elif tile == TILE_WATER:
+        if tile == TILE_WATER:
             self._render_water(surface, tx, ty, sx, sy, size, zoom)
-        elif tile == TILE_RAMP:
-            self._render_ramp(surface, tx, ty, sx, sy, size, height, zoom)
         elif tile == TILE_TITAN_ORE:
             self._render_titan_ore(surface, tx, ty, sx, sy, size, zoom)
         elif tile == TILE_PLASMA_GEYSER:
@@ -438,27 +452,25 @@ class TerrainRenderer:
     def render_grid(self, surface, camera, color=None):
         """Отрисовка сетки поверх карты."""
         if color is None:
-            color = (40, 50, 45, 80)
+            color = (40, 50, 45)
+        elif len(color) == 4:
+            color = color[:3]
 
         start_x, start_y, end_x, end_y = camera.get_visible_tiles()
         zoom = camera.zoom
         tile_size = int(TILE_SIZE * zoom)
 
-        if tile_size < 4:
+        if tile_size < 6:
             return  # Слишком мелко
-
-        grid_surf = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
         for ty in range(start_y, end_y + 1):
             wy = ty * TILE_SIZE
             sx1, sy1 = camera.world_to_screen(start_x * TILE_SIZE, wy)
             sx2, sy2 = camera.world_to_screen(end_x * TILE_SIZE, wy)
-            pygame.draw.line(grid_surf, color, (int(sx1), int(sy1)), (int(sx2), int(sy2)))
+            pygame.draw.line(surface, color, (int(sx1), int(sy1)), (int(sx2), int(sy2)))
 
         for tx in range(start_x, end_x + 1):
             wx = tx * TILE_SIZE
             sx1, sy1 = camera.world_to_screen(wx, start_y * TILE_SIZE)
             sx2, sy2 = camera.world_to_screen(wx, end_y * TILE_SIZE)
-            pygame.draw.line(grid_surf, color, (int(sx1), int(sy1)), (int(sx2), int(sy2)))
-
-        surface.blit(grid_surf, (0, 0))
+            pygame.draw.line(surface, color, (int(sx1), int(sy1)), (int(sx2), int(sy2)))

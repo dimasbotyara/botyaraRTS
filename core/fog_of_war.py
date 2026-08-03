@@ -94,47 +94,44 @@ class FogOfWar:
         ty = int(wy // TILE_SIZE)
         return self.is_visible(tx, ty)
 
+    def _get_explored_surf(self, size):
+        """Получить кэшированный полупрозрачный тайл для исследованных областей."""
+        if not hasattr(self, '_explored_surfaces'):
+            self._explored_surfaces = {}
+        if size not in self._explored_surfaces:
+            surf = pygame.Surface((size, size), pygame.SRCALPHA)
+            surf.fill((0, 0, 0, 160))
+            self._explored_surfaces[size] = surf
+        return self._explored_surfaces[size]
+
     def render(self, surface, camera):
         """Отрисовка тумана войны поверх карты."""
         start_x, start_y, end_x, end_y = camera.get_visible_tiles()
+        zoom = camera.zoom
+        size = int(TILE_SIZE * zoom)
 
-        # Создаём полупрозрачную поверхность
-        vis_rect = camera.get_visible_rect()
-        fog_w = int(vis_rect.width) + TILE_SIZE * 2
-        fog_h = int(vis_rect.height) + TILE_SIZE * 2
-
-        if fog_w <= 0 or fog_h <= 0:
+        if size < 1:
             return
 
-        fog = pygame.Surface((fog_w, fog_h), pygame.SRCALPHA)
+        explored_surf = self._get_explored_surf(size)
 
         for ty in range(start_y, end_y):
             for tx in range(start_x, end_x):
-                state = self.visibility[ty][tx] if (0 <= ty < self.height and 0 <= tx < self.width) else FOG_STATE_UNEXPLORED
+                if 0 <= ty < self.height and 0 <= tx < self.width:
+                    state = self.visibility[ty][tx]
+                else:
+                    state = FOG_STATE_UNEXPLORED
 
                 if state == FOG_STATE_VISIBLE:
                     continue  # Прозрачный
 
-                wx = tx * TILE_SIZE
-                wy = ty * TILE_SIZE
-
-                fx = int(wx - vis_rect.x + TILE_SIZE)
-                fy = int(wy - vis_rect.y + TILE_SIZE)
-                size = TILE_SIZE
+                sx, sy = camera.world_to_screen(tx * TILE_SIZE, ty * TILE_SIZE)
+                isx, isy = int(sx), int(sy)
 
                 if state == FOG_STATE_UNEXPLORED:
-                    pygame.draw.rect(fog, FOG_UNEXPLORED, (fx, fy, size, size))
-                else:
-                    pygame.draw.rect(fog, FOG_EXPLORED, (fx, fy, size, size))
-
-        # Масштабируем и рисуем
-        scaled_w = int(fog_w * camera.zoom)
-        scaled_h = int(fog_h * camera.zoom)
-        if scaled_w > 0 and scaled_h > 0:
-            fog_scaled = pygame.transform.scale(fog, (scaled_w, scaled_h))
-            offset_x = int((vis_rect.x - TILE_SIZE - camera.x) * camera.zoom)
-            offset_y = int((vis_rect.y - TILE_SIZE - camera.y) * camera.zoom)
-            surface.blit(fog_scaled, (offset_x, offset_y))
+                    pygame.draw.rect(surface, (0, 0, 0), (isx, isy, size, size))
+                elif state == FOG_STATE_EXPLORED:
+                    surface.blit(explored_surf, (isx, isy))
 
     def reveal_all(self):
         """Открыть всю карту (для дебага)."""

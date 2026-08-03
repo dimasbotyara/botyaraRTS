@@ -202,8 +202,29 @@ class Worker(Unit):
             return (nearest.x, nearest.y)
         return None
 
+    def stop_work(self):
+        """Отменить любые трудовые задачи (добыча, стройка)."""
+        self.harvest_state = 'IDLE'
+        self.harvest_target = None
+        self.return_target = None
+        self.building_state = 'IDLE'
+        self.build_target = None
+
+    def move_to_point(self, world_x, world_y, tilemap):
+        self.stop_work()
+        return super().move_to_point(world_x, world_y, tilemap)
+
+    def attack_target_entity(self, target):
+        self.stop_work()
+        super().attack_target_entity(target)
+
+    def stop(self):
+        self.stop_work()
+        super().stop()
+
     def command_harvest(self, tile_x, tile_y):
         """Приказ идти добывать ресурс."""
+        self.stop_work()
         self.harvest_target = (tile_x, tile_y)
         self.harvest_state = 'GOING_TO_RESOURCE'
         self.state = 'IDLE'
@@ -211,10 +232,108 @@ class Worker(Unit):
 
     def command_build(self, building):
         """Приказ идти строить здание."""
+        self.stop_work()
         self.build_target = building
         self.building_state = 'GOING_TO_BUILD'
         self.state = 'IDLE'
         self.attack_target = None
+
+    def _update_harvest(self, dt, game_state):
+        """Цикл добычи ресурсов."""
+        speed_mult = 1.0 + self.gang_bonus
+
+        if self.harvest_state == 'GOING_TO_RESOURCE':
+            if not self.harvest_target:
+                self.stop_work()
+                return
+
+            tx, ty = self.harvest_target
+            target_x = tx * TILE_SIZE + TILE_SIZE // 2
+            target_y = ty * TILE_SIZE + TILE_SIZE // 2
+
+            arrived = self._move_towards(target_x, target_y, dt * speed_mult)
+            if arrived:
+                # Определяем тип ресурса
+                tile = game_state.tilemap.get_tile(tx, ty)
+                from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
+                if tile == TILE_TITAN_ORE:
+                    self.carrying_resource = 'titan'
+                elif tile == TILE_PLASMA_GEYSER:
+                    self.carrying_resource = 'plasma'
+                else:
+                    self.stop_work()
+                    return
+                self.harvest_state = 'HARVESTING'
+                self.harvest_timer = 0
+
+        elif self.harvest_state == 'HARVESTING':
+            self.harvest_timer += dt * speed_mult
+            if self.harvest_timer >= WORKER_HARVEST_TIME:
+                self.carrying_amount = self.max_carry
+                self.harvest_state = 'RETURNING'
+                # Находим ближайший HQ
+                self.return_target = self._find_nearest_drop_off(game_state)
+                if not self.return_target:
+                    self.stop_work()
+
+        elif self.harvest_state == 'RETURNING':
+            if not self.return_target:
+                self.stop_work()
+                return
+
+            arrived = self._move_towards(
+                self.return_target[0], self.return_target[1], dt * speed_mult
+            )
+            if arrived:
+                # Сдаём ресурсы
+                if hasattr(game_state, 'players'):
+                    player = game_state.players.get(self.player_id)
+                    if player:
+                        if self.carrying_resource == 'titan':
+                            player.titan += self.carrying_amount
+                        elif self.carrying_resource == 'plasma':
+                            player.plasma += self.carrying_amount
+
+                self.carrying_amount = 0
+                self.carrying_resource = None
+
+                # Идём обратно к ресурсу если он всё ещё ресурс
+                if self.harvest_target:
+                    tx, ty = self.harvest_target
+                    tile = game_state.tilemap.get_tile(tx, ty)
+                    from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
+                    if tile in (TILE_TITAN_ORE, TILE_PLASMA_GEYSER):
+                        self.harvest_state = 'GOING_TO_RESOURCE'
+                    else:
+                        self.stop_work()
+                else:
+                    self.stop_work()
+
+    def _update_building(self, dt, game_state):
+        """Цикл строительства."""
+        speed_mult = 1.0 + self.gang_bonus
+
+        if self.building_state == 'GOING_TO_BUILD':
+            if not self.build_target or not self.build_target.alive:
+                self.stop_work()
+                return
+
+            arrived = self._move_towards(
+                self.build_target.x, self.build_target.y, dt * speed_mult
+            )
+            if arrived or self.distance_to(self.build_target) < TILE_SIZE * 2:
+                self.building_state = 'BUILDING'
+
+        elif self.building_state == 'BUILDING':
+            if not self.build_target or not self.build_target.alive:
+                self.stop_work()
+                return
+
+            if hasattr(self.build_target, 'construction_progress'):
+                self.build_target.construction_progress += dt * self.build_speed * speed_mult
+                if self.build_target.construction_progress >= self.build_target.build_time:
+                    self.build_target.complete_construction()
+                    self.stop_work()
 
     def render(self, surface, camera):
         """Отрисовка рабочего."""
@@ -233,3 +352,4 @@ class Worker(Unit):
                 (screen_rect.centerx, screen_rect.top - 2),
                 dot_size
             )
+

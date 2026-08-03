@@ -33,7 +33,7 @@ CAMERA_ZOOM_MIN = 0.5
 CAMERA_ZOOM_MAX = 2.0
 CAMERA_ZOOM_SPEED = 0.1
 CAMERA_INERTIA = 0.85
-CULLING_MARGIN = 2  # экрана запаса для culling
+CULLING_MARGIN = 0.05  # небольшой запас для culling
 
 # === COLORS ===
 # Ландшафт
