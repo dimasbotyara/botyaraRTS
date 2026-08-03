@@ -582,6 +582,26 @@ TRANSLATIONS = {
         'en': 'DMG: {dmg}  RNG: {rng}  SPD: {spd}',
         'ru': 'УРОН: {dmg}  ДИСТ: {rng}  СКОР: {spd}',
     },
+    'hud.tab_base': {
+        'en': 'Base',
+        'ru': 'База',
+    },
+    'hud.tab_defense': {
+        'en': 'Defense',
+        'ru': 'Оборона',
+    },
+    'hud.tab_advanced': {
+        'en': 'Advanced',
+        'ru': 'Развитие',
+    },
+    'hud.tab_units': {
+        'en': 'Units',
+        'ru': 'Войска',
+    },
+    'hud.no_selection': {
+        'en': 'No selection',
+        'ru': 'Ничего не выделено',
+    },
     'hud.fps': {
         'en': 'FPS: {fps}',
         'ru': 'FPS: {fps}',

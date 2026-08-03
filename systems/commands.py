@@ -95,11 +95,21 @@ class CommandSystem:
 
         nearest_worker = None
         min_dist = float('inf')
-
+        
+        # Сначала ищем свободных
         for entity in game_state.get_all_entities():
             if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
-                if entity.building_state == 'IDLE' and entity.harvest_state == 'IDLE' and \
-                   entity.state == 'IDLE':
+                if entity.building_state == 'IDLE' and entity.harvest_state == 'IDLE' and entity.state == 'IDLE':
+                    dist = entity.distance_to(building)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_worker = entity
+                        
+        # Если свободных нет, берем любого ближайшего (прерываем его задачу)
+        if not nearest_worker:
+            min_dist = float('inf')
+            for entity in game_state.get_all_entities():
+                if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
                     dist = entity.distance_to(building)
                     if dist < min_dist:
                         min_dist = dist

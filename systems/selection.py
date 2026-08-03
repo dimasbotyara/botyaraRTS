@@ -188,6 +188,16 @@ class SelectionSystem:
                 # Вражеский объект — атака
                 for unit in own_units:
                     unit.attack_target_entity(target_entity, shift=shift_held)
+            else:
+                # Свой объект — если это недостроенное здание, отправляем рабочих достраивать
+                if target_entity.is_building and not target_entity.is_completed:
+                    from entities.worker import Worker
+                    for unit in own_units:
+                        if isinstance(unit, Worker):
+                            # У Worker есть метод command_build(building_type, x, y), 
+                            # но нам нужно чтобы он просто пошел к нему и строил.
+                            # Добавим метод command_resume_build(target_building) в Worker
+                            unit.command_resume_build(target_entity, shift=shift_held)
         else:
             # Клик по земле или ресурсу
             tile_x = int(world_x // TILE_SIZE)
@@ -206,8 +216,12 @@ class SelectionSystem:
                         unit.move_to_point(world_x, world_y, game_state.tilemap, shift=shift_held)
             else:
                 # Приказ движения
+                moved_any = False
                 for unit in own_units:
-                    unit.move_to_point(world_x, world_y, game_state.tilemap)
+                    unit.move_to_point(world_x, world_y, game_state.tilemap, shift=shift_held)
+                    moved_any = True
+                if moved_any and hasattr(game_state, 'ping_system'):
+                    game_state.ping_system.add_ping(world_x, world_y, 'move')
 
                 # Rally point для зданий
                 for building in own_buildings:

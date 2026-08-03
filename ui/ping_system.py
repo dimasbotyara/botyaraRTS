@@ -15,19 +15,21 @@ class PingSystem:
         self.ping_types = {
             'attention': {'color': COLOR_UI_WARNING, 'text': '!'},
             'retreat': {'color': COLOR_UI_DANGER, 'text': '←'},
+            'move': {'color': (50, 255, 50), 'text': ''},
         }
 
     def add_ping(self, world_x, world_y, ping_type='attention'):
         """Добавить пинг."""
         info = self.ping_types.get(ping_type, self.ping_types['attention'])
+        timer = 0.8 if ping_type == 'move' else 3.0
         self.pings.append({
             'x': world_x,
             'y': world_y,
             'type': ping_type,
             'color': info['color'],
             'text': info['text'],
-            'timer': 3.0,
-            'max_timer': 3.0,
+            'timer': timer,
+            'max_timer': timer,
         })
 
     def update(self, dt):

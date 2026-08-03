@@ -4,6 +4,9 @@ botyaraRTS - ui/upgrade_picker.py
 """
 import pygame
 from settings import *
+from systems.upgrades import UPGRADE_COMPENSATION
+from localization import t
+from ui.font_utils import SmartFont
 
 
 class UpgradePicker:
@@ -26,18 +29,11 @@ class UpgradePicker:
         # Кнопка "Пропустить"
         self.skip_rect = pygame.Rect(0, 0, 200, 40)
 
-        try:
-            self.font_title = pygame.font.Font(None, 32)
-            self.font_name = pygame.font.Font(None, 26)
-            self.font_desc = pygame.font.Font(None, 20)
-            self.font_tier = pygame.font.Font(None, 22)
-            self.font_btn = pygame.font.Font(None, 24)
-        except Exception:
-            self.font_title = pygame.font.SysFont('arial', 24)
-            self.font_name = pygame.font.SysFont('arial', 18)
-            self.font_desc = pygame.font.SysFont('arial', 14)
-            self.font_tier = pygame.font.SysFont('arial', 16)
-            self.font_btn = pygame.font.SysFont('arial', 18)
+        self.font_title = SmartFont(32, bold=True)
+        self.font_name = SmartFont(26, bold=True)
+        self.font_desc = SmartFont(20)
+        self.font_tier = SmartFont(22, bold=True)
+        self.font_btn = SmartFont(24, bold=True)
 
     def render(self, surface, upgrade_system, game_state):
         """Отрисовка оверлея."""
@@ -109,12 +105,16 @@ class UpgradePicker:
             surface.blit(tier_text, (x + 10, card_y + 10))
 
             # Название
-            name_text = self.font_name.render(upgrade.name, True, COLOR_UI_TEXT)
+            name_key = f"upgrade.{upgrade.name.replace(' ', '')}"
+            display_name = t(name_key, default=upgrade.name)
+            name_text = self.font_name.render(display_name, True, COLOR_UI_TEXT)
             surface.blit(name_text, (x + 10, card_y + 65))
 
             # Описание (с переносом строк)
+            desc_key = f"upgrade.{upgrade.name.replace(' ', '')}.desc"
+            display_desc = t(desc_key, default=upgrade.description)
             self._render_wrapped_text(
-                surface, upgrade.description,
+                surface, display_desc,
                 x + 10, card_y + 95,
                 self.card_width - 20,
                 self.font_desc, COLOR_UI_TEXT_DIM
@@ -144,10 +144,12 @@ class UpgradePicker:
             pygame.draw.rect(surface, (40, 30, 30), rect, border_radius=6)
             pygame.draw.rect(surface, (200, 50, 50), rect, 2, border_radius=6)
 
-            name_text = self.font_name.render(upgrade.name, True, COLOR_UI_TEXT)
+            name_key = f"upgrade.{upgrade.name.replace(' ', '')}"
+            display_name = t(name_key, default=upgrade.name)
+            name_text = self.font_name.render(display_name, True, COLOR_UI_TEXT)
             surface.blit(name_text, (x + 10, slot_y + 10))
 
-            replace_text = self.font_desc.render("Click to replace", True, COLOR_UI_DANGER)
+            replace_text = self.font_desc.render(t('upgrade.click_replace', default="Click to replace"), True, COLOR_UI_DANGER)
             surface.blit(replace_text, (x + 10, slot_y + 40))
 
             mouse_pos = pygame.mouse.get_pos()

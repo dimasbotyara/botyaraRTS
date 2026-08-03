@@ -6,6 +6,7 @@ import pygame
 from settings import *
 from entities.building import ALL_BUILDINGS
 from localization import t, t_unit, t_building
+from ui.font_utils import SmartFont
 
 
 class HUD:
@@ -26,7 +27,7 @@ class HUD:
         )
 
         # Вкладки строительства
-        self.build_tabs = [t('hud.build_tab_economy'), t('hud.build_tab_military'), t('hud.build_tab_research'), t('hud.build_tab_defense')]
+        self.build_tabs = [t('hud.tab_base'), t('hud.tab_defense'), t('hud.tab_advanced'), t('hud.tab_units')]
         self.build_tab_keys = ['economy', 'production', 'research', 'defense']
         self.current_tab = 0
         self.tab_rects = []
@@ -49,14 +50,9 @@ class HUD:
         self.upgrade_slot_size = 40
 
     def _init_fonts(self):
-        try:
-            self.font_large = pygame.font.Font(None, 28)
-            self.font_medium = pygame.font.Font(None, 22)
-            self.font_small = pygame.font.Font(None, 18)
-        except Exception:
-            self.font_large = pygame.font.SysFont('arial', 20)
-            self.font_medium = pygame.font.SysFont('arial', 16)
-            self.font_small = pygame.font.SysFont('arial', 12)
+        self.font_large = SmartFont(24, bold=True)
+        self.font_medium = SmartFont(18, bold=True)
+        self.font_small = SmartFont(14)
 
     def is_point_on_panel(self, x, y):
         """Проверить, находится ли точка на панели UI."""
@@ -133,8 +129,10 @@ class HUD:
         panel_y = self.panel_y + 12
 
         if not selected_entities:
-            # Показываем вкладки строительства
-            self._render_build_tabs(surface, game_state, panel_y)
+            self.action_buttons = []
+            self.tab_rects = []
+            text = self.font_medium.render(t('hud.no_selection'), True, COLOR_UI_TEXT_DIM)
+            surface.blit(text, (self.panel_x + self.panel_width // 2 - text.get_width() // 2, panel_y + 30))
         elif len(selected_entities) == 1:
             # Информация об одном юните/здании
             self._render_single_info(surface, selected_entities[0], panel_y, game_state)
@@ -190,7 +188,8 @@ class HUD:
             pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
             # Название
-            name_text = self.font_small.render(temp.name[:6], True, COLOR_UI_TEXT)
+            display_name = t_building(temp.name)
+            name_text = self.font_small.render(display_name[:7], True, COLOR_UI_TEXT)
             surface.blit(name_text, (rect.x + 2, rect.y + 2))
 
             # Стоимость
@@ -270,7 +269,8 @@ class HUD:
                     pygame.draw.rect(surface, bg_color, rect, border_radius=6)
                     pygame.draw.rect(surface, COLOR_UI_PANEL_BORDER, rect, 1, border_radius=6)
 
-                    name_text = self.font_small.render(temp.name[:6], True, COLOR_UI_TEXT)
+                    display_name = t_unit(temp.name)
+                    name_text = self.font_small.render(display_name[:7], True, COLOR_UI_TEXT)
                     surface.blit(name_text, (rect.x + 2, rect.y + 2))
 
                     cost_text = self.font_small.render(

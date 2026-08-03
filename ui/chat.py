@@ -5,6 +5,7 @@ botyaraRTS - ui/chat.py
 import pygame
 import time
 from settings import *
+from ui.font_utils import SmartFont
 
 
 class ChatSystem:
@@ -20,10 +21,7 @@ class ChatSystem:
         self.max_messages = 50
         self.display_duration = 10.0
 
-        try:
-            self.font = pygame.font.Font(None, 20)
-        except Exception:
-            self.font = pygame.font.SysFont('arial', 14)
+        self.font = SmartFont(20)
 
     def toggle(self):
         self.is_open = not self.is_open

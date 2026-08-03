@@ -190,7 +190,7 @@ class Medic(Unit):
 
     def update(self, dt, game_state):
         """Медик лечит вместо атаки."""
-        Entity.update(self, dt, game_state)
+        super().update(dt, game_state)
         if not self.alive:
             return
 

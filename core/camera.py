@@ -103,11 +103,8 @@ class Camera:
             self.x += self.vel_x
             self.y += self.vel_y
 
-        # Плавный зум
-        if abs(self.zoom - self.target_zoom) > 0.001:
-            self.zoom += (self.target_zoom - self.zoom) * 0.15
-        else:
-            self.zoom = self.target_zoom
+        # Применяем зум мгновенно
+        self.zoom = self.target_zoom
 
         # Ограничение границ карты
         self.clamp()

@@ -92,6 +92,47 @@ class Unit(Entity):
         elif self.state == 'ATTACK':
             self._state_attack(dt, game_state)
 
+        # Расталкивание юнитов
+        self._apply_separation(dt, game_state)
+
+    def _apply_separation(self, dt, game_state):
+        """Простейшая физика избегания наложения юнитов друг на друга."""
+        radius = 16.0  # Радиус столкновения
+        neighbors = game_state.spatial_hash.query_radius(self.x, self.y, radius * 2.5)
+        
+        sep_x, sep_y = 0.0, 0.0
+        count = 0
+        
+        import math
+        for neighbor in neighbors:
+            if neighbor is self or not neighbor.is_unit or not neighbor.alive or getattr(neighbor, 'is_flying', False) != getattr(self, 'is_flying', False):
+                continue
+                
+            dx = self.x - neighbor.x
+            dy = self.y - neighbor.y
+            dist_sq = dx * dx + dy * dy
+            
+            # Если ровно в одной точке - случайно сдвигаем
+            if dist_sq == 0:
+                import random
+                dx = random.uniform(-1, 1)
+                dy = random.uniform(-1, 1)
+                dist_sq = dx * dx + dy * dy
+
+            if dist_sq < (radius * 2) ** 2:
+                dist = math.sqrt(dist_sq)
+                overlap = (radius * 2) - dist
+                
+                force = overlap / dist
+                sep_x += dx * force
+                sep_y += dy * force
+                count += 1
+                
+        if count > 0:
+            push_speed = 50.0  # Сила расталкивания
+            self.x += (sep_x / count) * push_speed * dt
+            self.y += (sep_y / count) * push_speed * dt
+
     def _state_idle(self, dt, game_state):
         """IDLE: Стоим, ищем врагов."""
         if self.stance == 'HOLD_POSITION':
@@ -361,6 +402,10 @@ class Unit(Entity):
         elif cmd_type == 'build' and hasattr(self, 'command_build'):
             building_class, tile_x, tile_y = args
             self.command_build(building_class, tile_x, tile_y, shift=False)
+            return True
+        elif cmd_type == 'resume_build' and hasattr(self, 'command_resume_build'):
+            building = args[0]
+            self.command_resume_build(building, shift=False)
             return True
         return False
 

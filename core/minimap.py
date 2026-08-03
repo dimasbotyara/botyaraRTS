@@ -80,7 +80,7 @@ class Minimap:
         wy = max(0, min(wy, MAP_HEIGHT))
 
         if button == 'left':
-            camera.center_on(wx, wy)
+            camera.center_on(wx, wy, instant=True)
             self.dragging = True
         return True
 

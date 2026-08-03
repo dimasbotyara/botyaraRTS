@@ -26,6 +26,7 @@ from entities.building import Headquarters, SupplyDepot
 from entities.worker import Worker
 from rendering.render_manager import RenderManager
 from localization import t, t_unit, t_building, needs_language_selection, set_lang
+from ui.font_utils import SmartFont
 
 
 # Состояния игры
@@ -156,10 +157,10 @@ class Game:
         self.clock = pygame.time.Clock()
 
         # Шрифты
-        self.menu_font_large = pygame.font.Font(None, 64)
-        self.menu_font_medium = pygame.font.Font(None, 36)
-        self.menu_font_small = pygame.font.Font(None, 24)
-        self.menu_font_title = pygame.font.Font(None, 80)
+        self.menu_font_large = SmartFont(52, bold=True)
+        self.menu_font_medium = SmartFont(28, bold=True)
+        self.menu_font_small = SmartFont(18)
+        self.menu_font_title = SmartFont(64, bold=True)
 
         # Пауза
         self.pause_votes = set()
@@ -539,51 +540,58 @@ class Game:
             if self.match_start_countdown < 0:
                 self.match_start_countdown = 0
 
-        gs.game_time += dt
-
-        # Обновляем рендер-менеджер (анимации)
+        # Обновляем рендер-менеджер (анимации воды и т.д.)
         gs.render_manager.update(dt)
 
-        # Пространственный хеш
-        gs.spatial_hash.clear()
-        for entity in gs.get_all_entities():
-            if entity.alive:
-                gs.spatial_hash.insert(entity)
+        if not hasattr(self, 'match_start_countdown') or self.match_start_countdown <= 0:
+            gs.game_time += dt
 
-        # Юниты
-        for unit in gs.units[:]:
-            if unit.alive:
-                unit.update(dt, gs)
-            else:
-                unit.death_timer += dt
-                if unit.death_timer > unit.death_duration:
-                    gs.units.remove(unit)
+            # Пространственный хеш
+            gs.spatial_hash.clear()
+            for entity in gs.get_all_entities():
+                if entity.alive:
+                    gs.spatial_hash.insert(entity)
 
-        # Здания
-        for building in gs.buildings[:]:
-            if building.alive:
-                building.update(dt, gs)
-            else:
-                building.death_timer += dt
-                if building.death_timer > building.death_duration:
-                    gs.buildings.remove(building)
+            # Юниты
+            for unit in gs.units[:]:
+                if unit.alive:
+                    unit.update(dt, gs)
+                else:
+                    unit.death_timer += dt
+                    if unit.death_timer > unit.death_duration:
+                        gs.units.remove(unit)
 
-        # Supply
-        for pid, player in gs.players.items():
-            player.recalculate_supply(gs.buildings)
-            player.recalculate_current_supply(gs.units)
+            # Здания
+            for building in gs.buildings[:]:
+                if building.alive:
+                    building.update(dt, gs)
+                else:
+                    building.death_timer += dt
+                    if building.death_timer > building.death_duration:
+                        gs.buildings.remove(building)
 
-        # Боевая система
-        gs.combat.update(dt, gs)
+            # Supply
+            for pid, player in gs.players.items():
+                player.recalculate_supply(gs.buildings)
+                player.recalculate_current_supply(gs.units)
 
-        # Туман войны
-        self._update_fog_of_war(dt)
+            # Боевая система
+            gs.combat.update(dt, gs)
 
-        # Улучшения
-        gs.upgrade_system.update(dt, gs.game_time, gs)
+            # Туман войны
+            self._update_fog_of_war(dt)
 
-        # Пассивные эффекты
-        self._update_upgrade_effects(dt)
+            # Улучшения
+            gs.upgrade_system.update(dt, gs.game_time, gs)
+
+            # Пассивные эффекты
+            self._update_upgrade_effects(dt)
+        else:
+            # Даже во время паузы нужно обновлять spatial_hash для выделения юнитов рамкой
+            gs.spatial_hash.clear()
+            for entity in gs.get_all_entities():
+                if entity.alive:
+                    gs.spatial_hash.insert(entity)
 
         # Миникарта
         gs.minimap.update(dt)
@@ -916,6 +924,9 @@ class Game:
         # ===== ПРЕВЬЮ СТРОИТЕЛЬСТВА =====
         gs.command_system.render_build_preview(self.screen, camera, gs.tilemap)
 
+        # ===== ВЕЙПОИНТЫ И ОЧЕРЕДЬ ПРИКАЗОВ =====
+        self._render_waypoints(camera)
+
         # ===== РАМКА ВЫДЕЛЕНИЯ =====
         gs.selection.render_selection_box(self.screen)
 
@@ -941,7 +952,7 @@ class Game:
         self._render_match_countdown()
 
         # ===== ОВЕРЛЕЙ УЛУЧШЕНИЙ =====
-        if gs.upgrade_system.is_choosing:
+        if gs.upgrade_system.is_choosing and (not hasattr(self, 'match_start_countdown') or self.match_start_countdown <= 0):
             gs.upgrade_picker.render(self.screen, gs.upgrade_system, gs)
 
         # ===== ДЕБАГ =====
@@ -962,10 +973,7 @@ class Game:
             num_str = str(num)
             scale_pulse = 1.0 + (ct - math.floor(ct)) * 0.25
             font_size = int(110 * scale_pulse)
-            try:
-                font = pygame.font.Font(None, font_size)
-            except Exception:
-                font = pygame.font.SysFont('arial', font_size, bold=True)
+            font = SmartFont(font_size, bold=True)
 
             shadow = font.render(num_str, True, (0, 0, 0))
             self.screen.blit(shadow, (cx - shadow.get_width() // 2 + 4, cy - shadow.get_height() // 2 + 4))
@@ -980,10 +988,7 @@ class Game:
         else:
             scale_pulse = 1.0 + (0.6 - ct) * 0.4
             font_size = int(72 * scale_pulse)
-            try:
-                font = pygame.font.Font(None, font_size)
-            except Exception:
-                font = pygame.font.SysFont('arial', font_size, bold=True)
+            font = SmartFont(font_size, bold=True)
 
             text_str = t('countdown.battle_start')
             shadow = font.render(text_str, True, (0, 0, 0))
@@ -992,9 +997,61 @@ class Game:
             txt = font.render(text_str, True, (50, 255, 100))
             self.screen.blit(txt, (cx - txt.get_width() // 2, cy - txt.get_height() // 2))
 
+    def _render_waypoints(self, camera):
+        gs = self.game_state
+        for entity in gs.selection.selected_entities:
+            if entity.player_id != gs.local_player_id:
+                continue
+
+            # Рисуем rally point для зданий
+            if entity.is_building and hasattr(entity, 'rally_point') and entity.rally_point:
+                rx, ry = entity.rally_point
+                sx1, sy1 = camera.world_to_screen(entity.x, entity.y)
+                sx2, sy2 = camera.world_to_screen(rx, ry)
+                pygame.draw.line(self.screen, (200, 200, 200), (sx1, sy1), (sx2, sy2), 1)
+                pygame.draw.circle(self.screen, (200, 200, 200), (sx2, sy2), 3)
+
+            # Рисуем путь для юнитов
+            if entity.is_unit:
+                points = []
+                points.append((entity.x, entity.y))
+                
+                # Добавляем текущую конечную точку пути
+                if getattr(entity, 'path', None):
+                    last_tx, last_ty = entity.path[-1]
+                    px = last_tx * 32 + 16 # TILE_SIZE = 32
+                    py = last_ty * 32 + 16
+                    points.append((px, py))
+                elif getattr(entity, 'target_x', None) is not None:
+                    points.append((entity.target_x, entity.target_y))
+                
+                # Добавляем точки из очереди команд
+                if hasattr(entity, 'command_queue'):
+                    for cmd_type, args in entity.command_queue:
+                        if cmd_type == 'move':
+                            points.append((args[0], args[1]))
+                        elif cmd_type in ('harvest', 'build'):
+                            if cmd_type == 'harvest':
+                                tx, ty = args[0], args[1]
+                            else: # build
+                                _, tx, ty = args[0], args[1], args[2]
+                            px = tx * 32 + 16
+                            py = ty * 32 + 16
+                            points.append((px, py))
+                        elif cmd_type == 'resume_build' or cmd_type == 'attack':
+                            target = args[0]
+                            if hasattr(target, 'x'):
+                                points.append((target.x, target.y))
+
+                if len(points) > 1:
+                    screen_points = [camera.world_to_screen(px, py) for px, py in points]
+                    pygame.draw.lines(self.screen, (50, 255, 50), False, screen_points, 1)
+                    for sp in screen_points[1:]:
+                        pygame.draw.circle(self.screen, (50, 255, 50), sp, 3)
+
     def _render_debug(self):
         gs = self.game_state
-        font = pygame.font.Font(None, 18)
+        font = SmartFont(18)
         y = 45
         lines = [
             f"Game Time: {gs.game_time:.1f}s",
@@ -1325,8 +1382,8 @@ class Game:
         mouse_pos = pygame.mouse.get_pos()
 
         langs = [
-            ('🇬🇧  English', 'en'),
-            ('🇷🇺  Русский', 'ru'),
+            ('[EN]  English', 'en'),
+            ('[RU]  Русский', 'ru'),
         ]
         for i, (label, _) in enumerate(langs):
             rect = pygame.Rect(cx - btn_w // 2, start_y + i * 90, btn_w, btn_h)

@@ -54,7 +54,7 @@ class Worker(Unit):
     def update(self, dt, game_state):
         """Обновление рабочего."""
         if not self.alive:
-            Entity.update(self, dt, game_state)
+            super().update(dt, game_state)
             return
 
         # Обновляем бонус «задруги»
@@ -246,6 +246,20 @@ class Worker(Unit):
         self.state = 'IDLE'
         self.attack_target = None
 
+    def command_resume_build(self, building, shift=False):
+        """Приказ продолжить стройку недостроенного здания."""
+        if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
+            if not hasattr(self, 'command_queue'):
+                self.command_queue = []
+            self.command_queue.append(('resume_build', (building,)))
+            return
+            
+        self.stop_work()
+        self.build_target = building
+        self.building_state = 'GOING_TO_BUILD'
+        self.state = 'IDLE'
+        self.attack_target = None
+        
     def command_build(self, building, shift=False):
         """Приказ идти строить здание."""
         if shift and (self.harvest_state != 'IDLE' or self.building_state != 'IDLE' or self.state != 'IDLE'):
