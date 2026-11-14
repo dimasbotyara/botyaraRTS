@@ -184,10 +184,10 @@
 
     <g filter="url(#glow)">
       <text x="64" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
-            font-size="84" letter-spacing="6" fill="url(#accent)">BOTYARA RTS</text>
+            font-size="84" letter-spacing="4" fill="url(#accent)">botyaraRTS</text>
     </g>
     <text x="66" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
-          font-size="84" letter-spacing="6" fill="#eaf6ff" opacity="0.92">BOTYARA RTS</text>
+          font-size="84" letter-spacing="4" opacity="0.94"><tspan fill="#eaf6ff">botyara</tspan><tspan fill="#00d4ff">RTS</tspan></text>
 
     <rect x="68" y="196" width="430" height="4" rx="2" fill="url(#accent)"/>
     <text x="66" y="240" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"

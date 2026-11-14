@@ -109,13 +109,13 @@ def mech(x, y, s, accent='#00d4ff', team='#1e90ff'):
 # ========================================
 
 def banner_main(lang):
+    # Название бренда везде слитно и на английском — как в игре
+    title = 'botyaraRTS'
     if lang == 'en':
-        title = 'BOTYARA RTS'
         subtitle = 'SCI-FI REAL-TIME STRATEGY'
         tips = ['LAN battles up to 4 commanders', '9 AI doctrines · 4 difficulty tiers',
                 'Fog of war · roguelike upgrades']
     else:
-        title = 'БОТЯРА RTS'
         subtitle = 'СТРАТЕГИЯ В РЕАЛЬНОМ ВРЕМЕНИ'
         tips = ['Сетевые битвы до 4 командиров', '9 доктрин ИИ · 4 уровня сложности',
                 'Туман войны · рогалик-улучшения']
@@ -163,10 +163,10 @@ def banner_main(lang):
 
     <g filter="url(#glow)">
       <text x="64" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
-            font-size="84" letter-spacing="6" fill="url(#accent)">{title}</text>
+            font-size="84" letter-spacing="4" fill="url(#accent)">{title}</text>
     </g>
     <text x="66" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
-          font-size="84" letter-spacing="6" fill="#eaf6ff" opacity="0.92">{title}</text>
+          font-size="84" letter-spacing="4" opacity="0.94"><tspan fill="#eaf6ff">botyara</tspan><tspan fill="#00d4ff">RTS</tspan></text>
 
     <rect x="68" y="196" width="430" height="4" rx="2" fill="url(#accent)"/>
     <text x="66" y="240" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
@@ -217,7 +217,7 @@ def jet(x, y, s, accent='#ff5f8a', contrail_w=170):
 
 
 def banner_ru_alt():
-    title = 'БОТЯРА RTS'
+    title = 'botyaraRTS'
     subtitle = 'КОМАНДУЙ · СТРОЙ · ПОБЕЖДАЙ'
     tips = 'Армия против армии: пехота, танки, авиация и спецназ'
     defs = '''    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
@@ -258,7 +258,7 @@ def banner_ru_alt():
 
     <!-- авиация -->
     {jet(520, 84, 1.25, accent='#00d4ff', contrail_w=200)}
-    {jet(760, 150, 0.95, accent='#00d4ff', contrail_w=150)}
+    {jet(730, 126, 0.95, accent='#00d4ff', contrail_w=150)}
     {jet(400, 190, 0.75, accent='#ff5f8a', contrail_w=110)}
 
     <!-- земля -->
@@ -279,10 +279,10 @@ def banner_ru_alt():
     <!-- заголовок по центру -->
     <g filter="url(#glow2)">
       <text x="{W // 2}" y="232" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
-            font-weight="bold" font-size="96" letter-spacing="8" fill="url(#acc2)">{title}</text>
+            font-weight="bold" font-size="96" letter-spacing="4" fill="url(#acc2)">{title}</text>
     </g>
     <text x="{W // 2 - 4}" y="228" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
-          font-weight="bold" font-size="96" letter-spacing="8" fill="#f4ecff" opacity="0.95">{title}</text>
+          font-weight="bold" font-size="96" letter-spacing="4" opacity="0.95"><tspan fill="#f4ecff">botyara</tspan><tspan fill="#ff9a3d">RTS</tspan></text>
 
     <text x="{W // 2}" y="272" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
           font-weight="bold" font-size="24" letter-spacing="9" fill="#c9a8e8">{subtitle}</text>

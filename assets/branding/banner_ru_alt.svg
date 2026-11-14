@@ -141,7 +141,7 @@
     </circle>
   </g>
     
-  <g transform="translate(760,150) scale(0.95)">
+  <g transform="translate(730,126) scale(0.95)">
     <line x1="14" y1="0" x2="164" y2="0" stroke="#00d4ff" stroke-width="2.5" opacity="0.35" stroke-dasharray="14 10"/>
     <path d="M -44,0 L 10,-9 L 26,0 L 10,9 Z" fill="#26344a" stroke="#3f567a" stroke-width="2"/>
     <path d="M -2,-9 L 12,-24 L 20,-10 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="1.5"/>
@@ -229,10 +229,10 @@
     <!-- заголовок по центру -->
     <g filter="url(#glow2)">
       <text x="640" y="232" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
-            font-weight="bold" font-size="96" letter-spacing="8" fill="url(#acc2)">БОТЯРА RTS</text>
+            font-weight="bold" font-size="96" letter-spacing="4" fill="url(#acc2)">botyaraRTS</text>
     </g>
     <text x="636" y="228" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
-          font-weight="bold" font-size="96" letter-spacing="8" fill="#f4ecff" opacity="0.95">БОТЯРА RTS</text>
+          font-weight="bold" font-size="96" letter-spacing="4" opacity="0.95"><tspan fill="#f4ecff">botyara</tspan><tspan fill="#ff9a3d">RTS</tspan></text>
 
     <text x="640" y="272" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
           font-weight="bold" font-size="24" letter-spacing="9" fill="#c9a8e8">КОМАНДУЙ · СТРОЙ · ПОБЕЖДАЙ</text>
