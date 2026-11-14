@@ -139,3 +139,14 @@ class FogOfWar:
             for x in range(self.width):
                 self.visibility[y][x] = FOG_STATE_VISIBLE
                 self.explored[y][x] = True
+
+    def explore_all_terrain(self):
+        """Открыть ландшафт всей карты (режим «исследованная карта»).
+
+        Территория видна всегда (затемнена вне обзора), враги прячутся
+        только там, где нет обзора. Никакого чёрного экрана на старте.
+        """
+        for y in range(self.height):
+            row = self.explored[y]
+            for x in range(self.width):
+                row[x] = True

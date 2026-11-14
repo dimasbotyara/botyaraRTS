@@ -82,8 +82,10 @@ class GameState:
         # Пространственный хеш
         self.spatial_hash = SpatialHash(cell_size=128)
 
-        # Туман войны
+        # Туман войны (ландшафт карты открыт сразу — врагов прячут
+        # только зоны без обзора, никакого чёрного экрана на старте)
         self.fog_of_war = FogOfWar(self.tilemap.width, self.tilemap.height)
+        self.fog_of_war.explore_all_terrain()
 
         # Миникарта
         self.minimap = Minimap(self.tilemap, screen_w, screen_h)
@@ -2069,7 +2071,10 @@ class Game:
             rm.render_entity(self.screen, camera, entity)
 
         # ===== ТУМАН ВОЙНЫ =====
-        if gs.debug_fog:
+        # Во время стартового отсчёта показываем мир без затемнения —
+        # юниты просто стоят на виду, туман включается после «BATTLE START!»
+        countdown_active = getattr(self, 'match_start_countdown', 0) > 0
+        if gs.debug_fog and not countdown_active:
             gs.fog_of_war.render(self.screen, camera)
 
         # ===== БОЕВЫЕ ЭФФЕКТЫ =====
