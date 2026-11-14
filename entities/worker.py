@@ -86,97 +86,6 @@ class Worker(Unit):
         )
         self.gang_bonus = min(0.30, worker_count * 0.05)
 
-    def _update_harvest(self, dt, game_state):
-        """Цикл добычи ресурсов."""
-        speed_mult = 1.0 + self.gang_bonus
-
-        if self.harvest_state == 'GOING_TO_RESOURCE':
-            if not self.harvest_target:
-                self.harvest_state = 'IDLE'
-                return
-
-            tx, ty = self.harvest_target
-            target_x = tx * TILE_SIZE + TILE_SIZE // 2
-            target_y = ty * TILE_SIZE + TILE_SIZE // 2
-
-            arrived = self._move_towards(target_x, target_y, dt * speed_mult)
-            if arrived:
-                # Определяем тип ресурса
-                tile = game_state.tilemap.get_tile(tx, ty)
-                from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
-                if tile == TILE_TITAN_ORE:
-                    self.carrying_resource = 'titan'
-                elif tile == TILE_PLASMA_GEYSER:
-                    self.carrying_resource = 'plasma'
-                else:
-                    self.harvest_state = 'IDLE'
-                    return
-                self.harvest_state = 'HARVESTING'
-                self.harvest_timer = 0
-
-        elif self.harvest_state == 'HARVESTING':
-            self.harvest_timer += dt * speed_mult
-            if self.harvest_timer >= WORKER_HARVEST_TIME:
-                self.carrying_amount = self.max_carry
-                self.harvest_state = 'RETURNING'
-                # Находим ближайший HQ
-                self.return_target = self._find_nearest_drop_off(game_state)
-                if not self.return_target:
-                    self.harvest_state = 'IDLE'
-
-        elif self.harvest_state == 'RETURNING':
-            if not self.return_target:
-                self.harvest_state = 'IDLE'
-                return
-
-            arrived = self._move_towards(
-                self.return_target[0], self.return_target[1], dt * speed_mult
-            )
-            if arrived:
-                # Сдаём ресурсы
-                if hasattr(game_state, 'players'):
-                    player = game_state.players.get(self.player_id)
-                    if player:
-                        if self.carrying_resource == 'titan':
-                            player.titan += self.carrying_amount
-                        elif self.carrying_resource == 'plasma':
-                            player.plasma += self.carrying_amount
-
-                self.carrying_amount = 0
-                self.carrying_resource = None
-
-                # Идём обратно к ресурсу
-                if self.harvest_target:
-                    self.harvest_state = 'GOING_TO_RESOURCE'
-                else:
-                    self.harvest_state = 'IDLE'
-
-    def _update_building(self, dt, game_state):
-        """Цикл строительства."""
-        speed_mult = 1.0 + self.gang_bonus
-
-        if self.building_state == 'GOING_TO_BUILD':
-            if not self.build_target or not self.build_target.alive:
-                self.building_state = 'IDLE'
-                return
-
-            arrived = self._move_towards(
-                self.build_target.x, self.build_target.y, dt * speed_mult
-            )
-            if arrived or self.distance_to(self.build_target) < TILE_SIZE * 2:
-                self.building_state = 'BUILDING'
-
-        elif self.building_state == 'BUILDING':
-            if not self.build_target or not self.build_target.alive:
-                self.building_state = 'IDLE'
-                return
-
-            if hasattr(self.build_target, 'construction_progress'):
-                self.build_target.construction_progress += dt * self.build_speed * speed_mult
-                if self.build_target.construction_progress >= self.build_target.build_time:
-                    self.build_target.complete_construction()
-                    self.building_state = 'IDLE'
-
     def _find_nearest_drop_off(self, game_state):
         """Найти ближайшее здание для сдачи ресурсов."""
         if not hasattr(game_state, 'buildings'):
@@ -326,9 +235,9 @@ class Worker(Unit):
                     player = game_state.players.get(self.player_id)
                     if player:
                         if self.carrying_resource == 'titan':
-                            player.titan += self.carrying_amount
+                            player.add_titan(self.carrying_amount)
                         elif self.carrying_resource == 'plasma':
-                            player.plasma += self.carrying_amount
+                            player.add_plasma(self.carrying_amount)
 
                 self.carrying_amount = 0
                 self.carrying_resource = None

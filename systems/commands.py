@@ -7,6 +7,94 @@ from settings import *
 from entities.building import *
 
 
+def place_building_at(game_state, player_id, building_class, tile_x, tile_y,
+                      send_worker=True):
+    """Поставить здание в указанный тайл (общая логика для игрока и ИИ).
+
+    Проверяет проходимость и ресурсы, списывает стоимость, создаёт здание
+    на 10% HP и отправляет ближайшего рабочего достраивать.
+    Возвращает здание или None.
+    """
+    player = game_state.players.get(player_id)
+    if not player:
+        return None
+
+    temp = building_class(0, 0)
+
+    if not game_state.tilemap.is_buildable(tile_x, tile_y, temp.size_tiles):
+        return None
+
+    # Не даём строить поверх других зданий и юнитов (AABB по footprint)
+    bx = tile_x * TILE_SIZE
+    by = tile_y * TILE_SIZE
+    bw = temp.size_tiles * TILE_SIZE
+    for other in game_state.buildings:
+        if not other.alive:
+            continue
+        ox = other.x - other.width // 2
+        oy = other.y - other.height // 2
+        if bx < ox + other.width and bx + bw > ox and \
+           by < oy + other.height and by + bw > oy:
+            return None
+
+    # Бонус от улучшения
+    cost_mult = player.get_upgrade_bonus('building_cost', 1.0)
+    titan_cost = int(temp.cost_titan * cost_mult)
+    plasma_cost = int(temp.cost_plasma * cost_mult)
+
+    if not player.can_afford(titan_cost, plasma_cost):
+        return None
+
+    # Списываем ресурсы
+    player.spend(titan_cost, plasma_cost)
+
+    # Создаём здание
+    world_x = tile_x * TILE_SIZE + (temp.size_tiles * TILE_SIZE) // 2
+    world_y = tile_y * TILE_SIZE + (temp.size_tiles * TILE_SIZE) // 2
+
+    building = building_class(world_x, world_y, player_id)
+    building.construction_progress = 0
+    building.hp = int(building.max_hp * 0.1)  # Начинает с 10% HP
+
+    game_state.add_entity(building)
+
+    if send_worker:
+        _send_worker_to_build(building, game_state, player_id)
+
+    player.buildings_built += 1
+    return building
+
+
+def _send_worker_to_build(building, game_state, player_id):
+    """Найти и отправить ближайшего свободного рабочего."""
+    from entities.worker import Worker
+
+    nearest_worker = None
+    min_dist = float('inf')
+
+    # Сначала ищем свободных
+    for entity in game_state.get_all_entities():
+        if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
+            if entity.building_state == 'IDLE' and entity.harvest_state == 'IDLE' and entity.state == 'IDLE':
+                dist = entity.distance_to(building)
+                if dist < min_dist:
+                    min_dist = dist
+                    nearest_worker = entity
+
+    # Если свободных нет, берем любого ближайшего (прерываем его задачу)
+    if not nearest_worker:
+        min_dist = float('inf')
+        for entity in game_state.get_all_entities():
+            if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
+                dist = entity.distance_to(building)
+                if dist < min_dist:
+                    min_dist = dist
+                    nearest_worker = entity
+
+    if nearest_worker:
+        nearest_worker.command_build(building)
+
+
 class CommandSystem:
     """Управление командами (строительство, приказы)."""
 
@@ -49,38 +137,11 @@ class CommandSystem:
             return False
 
         tx, ty = self.build_preview_pos
-        player = game_state.players.get(player_id)
-        if not player:
+
+        building = place_building_at(game_state, player_id,
+                                     self.build_class, tx, ty)
+        if building is None:
             return False
-
-        # Создаём временный экземпляр для проверки стоимости
-        temp = self.build_class(0, 0)
-
-        # Бонус от улучшения
-        cost_mult = player.get_upgrade_bonus('building_cost', 1.0)
-        titan_cost = int(temp.cost_titan * cost_mult)
-        plasma_cost = int(temp.cost_plasma * cost_mult)
-
-        if not player.can_afford(titan_cost, plasma_cost):
-            return False
-
-        # Списываем ресурсы
-        player.spend(titan_cost, plasma_cost)
-
-        # Создаём здание
-        world_x = tx * TILE_SIZE + (temp.size_tiles * TILE_SIZE) // 2
-        world_y = ty * TILE_SIZE + (temp.size_tiles * TILE_SIZE) // 2
-
-        building = self.build_class(world_x, world_y, player_id)
-        building.construction_progress = 0
-        building.hp = int(building.max_hp * 0.1)  # Начинает с 10% HP
-
-        game_state.add_entity(building)
-
-        # Отправляем ближайшего рабочего строить
-        self._send_worker_to_build(building, game_state, player_id)
-
-        player.buildings_built += 1
 
         # Не выходим из режима строительства если зажат Shift
         keys = pygame.key.get_pressed()
@@ -88,35 +149,6 @@ class CommandSystem:
             self.cancel_build_mode()
 
         return True
-
-    def _send_worker_to_build(self, building, game_state, player_id):
-        """Найти и отправить ближайшего свободного рабочего."""
-        from entities.worker import Worker
-
-        nearest_worker = None
-        min_dist = float('inf')
-        
-        # Сначала ищем свободных
-        for entity in game_state.get_all_entities():
-            if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
-                if entity.building_state == 'IDLE' and entity.harvest_state == 'IDLE' and entity.state == 'IDLE':
-                    dist = entity.distance_to(building)
-                    if dist < min_dist:
-                        min_dist = dist
-                        nearest_worker = entity
-                        
-        # Если свободных нет, берем любого ближайшего (прерываем его задачу)
-        if not nearest_worker:
-            min_dist = float('inf')
-            for entity in game_state.get_all_entities():
-                if isinstance(entity, Worker) and entity.player_id == player_id and entity.alive:
-                    dist = entity.distance_to(building)
-                    if dist < min_dist:
-                        min_dist = dist
-                        nearest_worker = entity
-
-        if nearest_worker:
-            nearest_worker.command_build(building)
 
     def render_build_preview(self, surface, camera, tilemap):
         """Отрисовка превью здания."""

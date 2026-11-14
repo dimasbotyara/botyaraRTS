@@ -17,6 +17,9 @@ class PlayerState:
         self.max_supply = STARTING_SUPPLY
         self.supply_cap = MAX_SUPPLY
 
+        # Множитель добычи (handicap/бонус сложности ИИ)
+        self.income_mult = 1.0
+
         # Статистика
         self.total_titan_mined = 0
         self.total_plasma_mined = 0
@@ -56,12 +59,16 @@ class PlayerState:
         return True
 
     def add_titan(self, amount):
-        self.titan += amount
-        self.total_titan_mined += amount
+        """Зачислить добытый титан (с учётом множителя сложности ИИ)."""
+        gain = max(0, int(amount * self.income_mult))
+        self.titan += gain
+        self.total_titan_mined += gain
 
     def add_plasma(self, amount):
-        self.plasma += amount
-        self.total_plasma_mined += amount
+        """Зачислить добытую плазму (с учётом множителя сложности ИИ)."""
+        gain = max(0, int(amount * self.income_mult))
+        self.plasma += gain
+        self.total_plasma_mined += gain
 
     def recalculate_supply(self, buildings):
         """Пересчитать лимит населения от зданий."""

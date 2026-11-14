@@ -107,6 +107,11 @@ class GameState:
         self.buildings = []
         self.dead_entities = []
 
+        # ИИ-мозги (наполняются при загрузке матча)
+        self.ai_brains = {}
+        # Запрос ИИ о сдаче (pid) — обрабатывает Game один раз за матч
+        self.ai_surrender_request = None
+
         # Системы
         self.selection = SelectionSystem()
         self.upgrade_system = UpgradeSystem()
@@ -571,7 +576,8 @@ class Game:
         btn_w, btn_h = 380, 64
         start_rect = pygame.Rect(cx - btn_w // 2, self.screen_h - 110, btn_w, btn_h)
         start = Button(start_rect, t('create.start'), self.menu_font_medium,
-                       kind='accent', border_radius=10)
+                       kind='accent', border_radius=10,
+                       callback=lambda: self._start_singleplayer(self.cm_cfg))
         start.draw(self.screen, mouse_pos)
         self._cm_buttons.append(start)
         if start.rect.collidepoint(mouse_pos):
@@ -651,6 +657,10 @@ class Game:
         self._save_match_settings(cfg)
         self._match_cfg = cfg
         self.total_players = 1
+        # Сброс состояния сдачи бота на новый матч
+        self._surrender_used = False
+        self._surrender_pending_pid = None
+        self._bot_surrendered = False
         self._load_gen = self._match_load_iter(cfg)
         self._load_progress = 0.0
         self._load_label = t('loading.quantum_core')
@@ -709,13 +719,12 @@ class Game:
         """
         from ai.brain import AIBrain
 
-        self.ai_brains = {}
         difficulty = cfg.get('ai_difficulty', 'standard')
         strategy = cfg.get('ai_strategy', 'random')
 
         for pid in range(1, len(self.game_state.players)):
             brain = AIBrain(pid, difficulty=difficulty, strategy=strategy)
-            self.ai_brains[pid] = brain
+            self.game_state.ai_brains[pid] = brain
 
     def _update_loading(self, events):
         """Обработка событий на экране загрузки."""
@@ -853,9 +862,6 @@ class Game:
         gs.players[player_id].recalculate_supply(gs.buildings)
         gs.players[player_id].recalculate_current_supply(gs.units)
 
-    def _spawn_ai_units(self, player_id):
-        self._spawn_starting_units(player_id)
-
     # ========================================
     # GAMEPLAY UPDATE
     # ========================================
@@ -977,8 +983,12 @@ class Game:
         if gs.command_system.build_mode:
             gs.command_system.update_build_preview(mouse_pos, gs.camera, gs.tilemap)
 
-        # ИИ
-        self._update_simple_ai(dt)
+        # ИИ (мозги на каждого бота)
+        for brain in gs.ai_brains.values():
+            brain.update(dt, gs)
+
+        # Предложение бота о сдаче (одно за матч)
+        self._poll_surrender_request()
 
         # Победа
         self._check_victory()
@@ -1038,44 +1048,92 @@ class Game:
             if gs.spy_reveal_duration <= 0:
                 gs.spy_reveal_active = False
 
-    def _update_simple_ai(self, dt):
+    # ========================================
+    # СДАЧА БОТА
+    # ========================================
+
+    def _poll_surrender_request(self):
+        """Одно предложение сдачи за матч: бот просит пощады — решает игрок."""
         gs = self.game_state
-        ai_id = 1
-        player = gs.players.get(ai_id)
-        if not player or player.is_defeated:
+        pid = gs.ai_surrender_request
+        if pid is None or getattr(self, '_surrender_used', False):
+            return
+        if pid not in gs.ai_brains:
+            gs.ai_surrender_request = None
+            return
+        self._surrender_used = True
+        self._surrender_pending_pid = pid
+
+    def _handle_surrender_click(self, pos):
+        """Клик по панели сдачи. True — клик поглощён."""
+        gs = self.game_state
+        pid = self._surrender_pending_pid
+        rects = getattr(self, '_surrender_rects', None)
+        if not rects:
+            return False
+
+        if rects['accept'].collidepoint(pos):
+            player = gs.players.get(pid)
+            if player:
+                player.is_defeated = True
+            self._bot_surrendered = True
+            self._surrender_pending_pid = None
+            gs.ai_surrender_request = None
+            # Игрок принял капитуляцию — немедленная победа
+            self.state = STATE_GAME_OVER
+            self._game_over_result = 'victory'
+            return True
+
+        if rects['decline'].collidepoint(pos):
+            brain = gs.ai_brains.get(pid)
+            if brain:
+                brain.desperate = True  # бот дерётся до конца (all-in)
+            self._surrender_pending_pid = None
+            gs.ai_surrender_request = None
+            return True
+
+        return False
+
+    def _render_surrender_panel(self):
+        """Панель «принять победу / заставить драться» сверху по центру."""
+        pid = getattr(self, '_surrender_pending_pid', None)
+        if pid is None or self.game_state is None:
             return
 
-        if not hasattr(self, '_ai_timer'):
-            self._ai_timer = 0
-            self._ai_attack_interval = 30.0
+        panel_w, panel_h = 560, 148
+        panel_x = (self.screen_w - panel_w) // 2
+        panel_y = 18
+        panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
 
-        self._ai_timer += dt
-        if self._ai_timer >= self._ai_attack_interval:
-            self._ai_timer = 0
+        # Фон
+        bg = pygame.Surface(panel.size, pygame.SRCALPHA)
+        bg.fill((24, 14, 10, 235))
+        self.screen.blit(bg, panel.topleft)
+        pygame.draw.rect(self.screen, (255, 170, 40), panel, 2, border_radius=10)
 
-            ai_units = [u for u in gs.units if u.player_id == ai_id and u.alive
-                        and u.state == 'IDLE']
+        cx = panel.centerx
+        title = self.menu_font_medium.render(t('surrender.title'), True, (255, 200, 60))
+        self.screen.blit(title, (cx - title.get_width() // 2, panel_y + 12))
 
-            if ai_units:
-                targets = [b for b in gs.buildings
-                           if b.player_id == gs.local_player_id and b.alive]
-                targets += [u for u in gs.units
-                            if u.player_id == gs.local_player_id and u.alive]
+        hint = self.menu_font_small.render(t('surrender.hint'), True, COLOR_UI_TEXT_DIM)
+        self.screen.blit(hint, (cx - hint.get_width() // 2, panel_y + 42))
 
-                if targets:
-                    target = random.choice(targets)
-                    for unit in ai_units[:5]:
-                        unit.attack_target_entity(target)
+        mouse_pos = pygame.mouse.get_pos()
+        btn_w, btn_h = 250, 44
+        btn_y = panel_y + 78
+        acc_rect = pygame.Rect(panel_x + 26, btn_y, btn_w, btn_h)
+        dec_rect = pygame.Rect(panel_x + panel_w - btn_w - 26, btn_y, btn_w, btn_h)
+        self._surrender_rects = {'accept': acc_rect, 'decline': dec_rect}
 
-            ai_barracks = [b for b in gs.buildings
-                           if b.player_id == ai_id and b.alive and b.is_completed
-                           and b.can_produce and hasattr(b, 'get_producible_units')]
-            for barracks in ai_barracks:
-                if len(barracks.production_queue) < 2:
-                    units = barracks.get_producible_units()
-                    if units:
-                        unit_class = random.choice(units)
-                        barracks.queue_unit(unit_class, gs)
+        for rect, label, base_color in (
+                (acc_rect, t('surrender.accept'), (30, 110, 60)),
+                (dec_rect, t('surrender.decline'), (140, 45, 40))):
+            color = brighten_color(base_color, 30) if rect.collidepoint(mouse_pos) else base_color
+            pygame.draw.rect(self.screen, color, rect, border_radius=8)
+            pygame.draw.rect(self.screen, brighten_color(base_color, 60), rect, 2, border_radius=8)
+            text = self.menu_font_small.render(label, True, COLOR_UI_TEXT)
+            self.screen.blit(text, (rect.centerx - text.get_width() // 2,
+                                    rect.centery - text.get_height() // 2))
 
     def _check_victory(self):
         gs = self.game_state
@@ -1154,6 +1212,11 @@ class Game:
     def _handle_game_mouse_down(self, event):
         gs = self.game_state
         keys = pygame.key.get_pressed()
+
+        # Панель сдачи бота — модальный приоритет
+        if getattr(self, '_surrender_pending_pid', None) is not None:
+            if self._handle_surrender_click(event.pos):
+                return
 
         if gs.upgrade_system.is_choosing:
             if event.button == 1:
@@ -1325,6 +1388,9 @@ class Game:
         # ===== ОВЕРЛЕЙ УЛУЧШЕНИЙ =====
         if gs.upgrade_system.is_choosing and (not hasattr(self, 'match_start_countdown') or self.match_start_countdown <= 0):
             gs.upgrade_picker.render(self.screen, gs.upgrade_system, gs)
+
+        # ===== ПАНЕЛЬ СДАЧИ БОТА =====
+        self._render_surrender_panel()
 
         # ===== ДЕБАГ =====
         if gs.debug_mode:
@@ -1700,6 +1766,8 @@ class Game:
                     t('gameover.units_stats', produced=player.units_produced, lost=player.units_lost),
                     t('gameover.buildings_stats', built=player.buildings_built, lost=player.buildings_lost),
                 ]
+                if getattr(self, '_bot_surrendered', False) and result == 'victory':
+                    stats.insert(1, t('gameover.surrender'))
                 for i, stat in enumerate(stats):
                     text = self.menu_font_small.render(stat, True, COLOR_UI_TEXT_DIM)
                     self.screen.blit(text, (self.screen_w // 2 - text.get_width() // 2,
