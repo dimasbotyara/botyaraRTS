@@ -94,6 +94,44 @@ STARTING_PLASMA = 100
 STARTING_SUPPLY = 15
 MAX_SUPPLY = 200
 
+# === НАСТРОЙКИ МАТЧА (экран создания игры) ===
+# Размер карты в тайлах
+MATCH_SIZES = {
+    'small': 176,
+    'medium': 256,
+    'large': 320,
+}
+# Стартовые ресурсы (титан, плазма)
+MATCH_START_RESOURCES = {
+    'poor': (300, 60),
+    'normal': (500, 100),
+    'rich': (900, 200),
+    'mad': (2000, 500),
+}
+# Множитель количества нейтральных кластеров ресурсов
+MATCH_DENSITY = {
+    'sparse': 0.6,
+    'normal': 1.0,
+    'rich': 1.7,
+}
+
+DEFAULT_MATCH_SETTINGS = {
+    'map_size': 'medium',
+    'players': 2,              # всего слотов: 1 человек + ИИ
+    'ai_difficulty': 'standard',
+    'ai_strategy': 'random',
+    'start_resources': 'normal',
+    'resource_density': 'normal',
+    'seed': 0,                 # 0 = случайный seed
+}
+
+# Сложности ИИ (ai/config.py)
+AI_DIFFICULTY_IDS = ['novice', 'standard', 'veteran', 'nightmare']
+
+# Стратегии ИИ (ai/strategies.py)
+AI_STRATEGY_IDS = ['random', 'balanced', 'rush', 'defense', 'air_only',
+                   'eco', 'swarm', 'tech', 'siege', 'harass']
+
 # === UNITS ===
 UNIT_STATES = ['IDLE', 'MOVE', 'PURSUIT', 'ATTACK', 'HARVEST', 'BUILD', 'REPAIR']
 STANCES = ['AGGRESSIVE', 'DEFENSIVE', 'HOLD_POSITION']

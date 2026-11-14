@@ -40,6 +40,20 @@ class Camera:
         self.target_y = None
         self.snap_speed = 0.15
 
+        # Границы карты (переопределяются под размер матча)
+        self.map_world_w = MAP_WIDTH
+        self.map_world_h = MAP_HEIGHT
+        self.map_tiles_w = MAP_WIDTH_TILES
+        self.map_tiles_h = MAP_HEIGHT_TILES
+
+    def set_map_bounds(self, world_w, world_h, tiles_w, tiles_h):
+        """Установить границы карты (в пикселях и тайлах)."""
+        self.map_world_w = world_w
+        self.map_world_h = world_h
+        self.map_tiles_w = tiles_w
+        self.map_tiles_h = tiles_h
+        self.clamp()
+
     def update(self, dt, keys_pressed, mouse_pos):
         """Обновить камеру каждый кадр."""
         dx, dy = 0.0, 0.0
@@ -161,8 +175,8 @@ class Camera:
         view_w = self.screen_w / self.zoom
         view_h = self.screen_h / self.zoom
 
-        max_x = MAP_WIDTH - view_w
-        max_y = MAP_HEIGHT - view_h
+        max_x = self.map_world_w - view_w
+        max_y = self.map_world_h - view_h
 
         self.x = max(0, min(self.x, max_x))
         self.y = max(0, min(self.y, max_y))
@@ -216,8 +230,8 @@ class Camera:
         cull = self.get_culling_rect()
         start_x = max(0, int(cull.x // TILE_SIZE))
         start_y = max(0, int(cull.y // TILE_SIZE))
-        end_x = min(MAP_WIDTH_TILES, int((cull.x + cull.width) // TILE_SIZE) + 1)
-        end_y = min(MAP_HEIGHT_TILES, int((cull.y + cull.height) // TILE_SIZE) + 1)
+        end_x = min(self.map_tiles_w, int((cull.x + cull.width) // TILE_SIZE) + 1)
+        end_y = min(self.map_tiles_h, int((cull.y + cull.height) // TILE_SIZE) + 1)
         return start_x, start_y, end_x, end_y
 
     def resize(self, new_w, new_h):

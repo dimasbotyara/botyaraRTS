@@ -25,70 +25,95 @@ class TerrainRenderer:
         # Сид для псевдослучайных деталей каждого тайла
         self.detail_rng = random.Random(tilemap.seed)
         self.tile_details = {}  # (tx, ty) -> {список деталей}
-        self._generate_tile_details()
+        self._details_generated = False
 
         # Анимация (вода, ресурсы)
         self.anim_time = 0
 
-    def _generate_tile_details(self):
-        """Предгенерация деталей для каждого тайла (камешки, трещины, травинки)."""
+    def pregen(self):
+        """Синхронная предгенерация деталей (для тестов)."""
+        for _ in self.pregen_iter():
+            pass
+        self._details_generated = True
+
+    def pregen_iter(self):
+        """Чанковая предгенерация деталей: yield (progress, None)."""
+        band = 24
+        y = 0
+        while y < self.tilemap.height:
+            y_end = min(y + band, self.tilemap.height)
+            for ty in range(y, y_end):
+                for tx in range(self.tilemap.width):
+                    self.tile_details[(tx, ty)] = self._make_tile_details(tx, ty)
+            y = y_end
+            yield y / self.tilemap.height, None
+        self._details_generated = True
+
+    def _get_details(self, tx, ty):
+        """Детали тайла; при отсутствии — ленивая генерация одного тайла."""
+        details = self.tile_details.get((tx, ty))
+        if details is None:
+            details = self._make_tile_details(tx, ty)
+            self.tile_details[(tx, ty)] = details
+        return details
+
+    def _make_tile_details(self, tx, ty):
+        """Детали одного тайла (камешки, трещины, травинки, кристаллы)."""
         rng = self.detail_rng
-        for ty in range(self.tilemap.height):
-            for tx in range(self.tilemap.width):
-                tile = self.tilemap.get_tile(tx, ty)
-                
-                details = []
+        tile = self.tilemap.get_tile(tx, ty)
 
-                if tile == TILE_GROUND:
-                    # Травинки / мелкие камешки
-                    num = rng.randint(0, 4)
-                    for _ in range(num):
-                        details.append({
-                            'type': rng.choice(['pebble', 'grass', 'crack']),
-                            'x': rng.randint(2, TILE_SIZE - 3),
-                            'y': rng.randint(2, TILE_SIZE - 3),
-                            'size': rng.randint(1, 3),
-                            'shade': rng.randint(-15, 15),
-                        })
+        details = []
 
-                elif tile == TILE_WALL:
-                    # Трещины, кристаллы в стенах
-                    num = rng.randint(1, 3)
-                    for _ in range(num):
-                        details.append({
-                            'type': rng.choice(['crack', 'crystal', 'ridge']),
-                            'x': rng.randint(3, TILE_SIZE - 4),
-                            'y': rng.randint(3, TILE_SIZE - 4),
-                            'size': rng.randint(2, 5),
-                            'shade': rng.randint(-10, 10),
-                            'angle': rng.randint(0, 360),
-                        })
+        if tile == TILE_GROUND:
+            # Травинки / мелкие камешки
+            num = rng.randint(0, 4)
+            for _ in range(num):
+                details.append({
+                    'type': rng.choice(['pebble', 'grass', 'crack']),
+                    'x': rng.randint(2, TILE_SIZE - 3),
+                    'y': rng.randint(2, TILE_SIZE - 3),
+                    'size': rng.randint(1, 3),
+                    'shade': rng.randint(-15, 15),
+                })
 
-                elif tile == TILE_TITAN_ORE:
-                    # Кристаллы титана
-                    num = rng.randint(2, 5)
-                    for _ in range(num):
-                        details.append({
-                            'type': 'crystal',
-                            'x': rng.randint(4, TILE_SIZE - 5),
-                            'y': rng.randint(4, TILE_SIZE - 5),
-                            'size': rng.randint(3, 7),
-                            'angle': rng.randint(0, 360),
-                            'height': rng.randint(4, 10),
-                        })
+        elif tile == TILE_WALL:
+            # Трещины, кристаллы в стенах
+            num = rng.randint(1, 3)
+            for _ in range(num):
+                details.append({
+                    'type': rng.choice(['crack', 'crystal', 'ridge']),
+                    'x': rng.randint(3, TILE_SIZE - 4),
+                    'y': rng.randint(3, TILE_SIZE - 4),
+                    'size': rng.randint(2, 5),
+                    'shade': rng.randint(-10, 10),
+                    'angle': rng.randint(0, 360),
+                })
 
-                elif tile == TILE_PLASMA_GEYSER:
-                    # Точки плазмы
-                    num = rng.randint(2, 4)
-                    for _ in range(num):
-                        details.append({
-                            'type': 'vent',
-                            'x': rng.randint(6, TILE_SIZE - 7),
-                            'y': rng.randint(6, TILE_SIZE - 7),
-                            'size': rng.randint(2, 5),
-                        })
+        elif tile == TILE_TITAN_ORE:
+            # Кристаллы титана
+            num = rng.randint(2, 5)
+            for _ in range(num):
+                details.append({
+                    'type': 'crystal',
+                    'x': rng.randint(4, TILE_SIZE - 5),
+                    'y': rng.randint(4, TILE_SIZE - 5),
+                    'size': rng.randint(3, 7),
+                    'angle': rng.randint(0, 360),
+                    'height': rng.randint(4, 10),
+                })
 
-                self.tile_details[(tx, ty)] = details
+        elif tile == TILE_PLASMA_GEYSER:
+            # Точки плазмы
+            num = rng.randint(2, 4)
+            for _ in range(num):
+                details.append({
+                    'type': 'vent',
+                    'x': rng.randint(6, TILE_SIZE - 7),
+                    'y': rng.randint(6, TILE_SIZE - 7),
+                    'size': rng.randint(2, 5),
+                })
+
+        return details
 
     def update(self, dt):
         """Обновление анимации."""
@@ -189,7 +214,7 @@ class TerrainRenderer:
 
         # Детали
         if size >= 12:
-            details = self.tile_details.get((tx, ty), [])
+            details = self._get_details(tx, ty)
             scale = size / TILE_SIZE
             for d in details:
                 dx = int(d['x'] * scale) + sx
@@ -227,7 +252,7 @@ class TerrainRenderer:
 
         # Детали
         if size >= 12:
-            details = self.tile_details.get((tx, ty), [])
+            details = self._get_details(tx, ty)
             scale = size / TILE_SIZE
             for d in details:
                 dx = int(d['x'] * scale) + sx
@@ -366,7 +391,7 @@ class TerrainRenderer:
             surface.blit(glow_surf, (sx, sy))
 
         # Кристаллы
-        details = self.tile_details.get((tx, ty), [])
+        details = self._get_details(tx, ty)
         scale = size / TILE_SIZE
         for d in details:
             if d['type'] != 'crystal':
@@ -428,7 +453,7 @@ class TerrainRenderer:
         pygame.draw.circle(surface, core_color, (cx, cy), max(1, vent_r // 2))
 
         # Пузырьки / вентиляционные отверстия
-        details = self.tile_details.get((tx, ty), [])
+        details = self._get_details(tx, ty)
         scale = size / TILE_SIZE
         for d in details:
             if d['type'] != 'vent':

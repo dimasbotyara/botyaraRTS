@@ -22,6 +22,7 @@ from ui.hud import HUD
 from ui.upgrade_picker import UpgradePicker
 from ui.chat import ChatSystem
 from ui.ping_system import PingSystem
+from ui.widgets import Button, draw_chip_row, draw_spinner
 from entities.building import Headquarters, SupplyDepot
 from entities.worker import Worker
 from rendering.render_manager import RenderManager
@@ -31,6 +32,8 @@ from ui.font_utils import SmartFont
 
 # Состояния игры
 STATE_MENU = 'menu'
+STATE_CREATE_MATCH = 'create_match'
+STATE_LOADING = 'loading'
 STATE_PLAYING = 'playing'
 STATE_PAUSED = 'paused'
 STATE_SETTINGS = 'settings'
@@ -41,16 +44,31 @@ STATE_GAME_OVER = 'game_over'
 class GameState:
     """Контейнер всех данных игрового мира."""
 
-    def __init__(self, screen_w, screen_h, seed=None, local_player_id=0):
+    def __init__(self, screen_w, screen_h, seed=None, local_player_id=0,
+                 tilemap=None, player_count=2, start_titan=STARTING_TITAN,
+                 start_plasma=STARTING_PLASMA, defer_pregen=False,
+                 match_settings=None):
         self.screen_w = screen_w
         self.screen_h = screen_h
         self.local_player_id = local_player_id
 
+        # Настройки матча
+        self.match_settings = dict(match_settings) if match_settings else {}
+
+        # Детерминированный RNG симуляции (важно для сетевой игры)
+        base_seed = seed if seed is not None else random.randint(0, 999999)
+        self.seed = base_seed
+        self.rng = random.Random(base_seed ^ 0x5EEDC0DE)
+
         # Карта
-        self.tilemap = TileMap(seed=seed)
+        self.tilemap = tilemap if tilemap is not None else TileMap(seed=seed)
 
         # Камера
         self.camera = Camera(screen_w, screen_h)
+        self.camera.set_map_bounds(
+            self.tilemap.width * TILE_SIZE, self.tilemap.height * TILE_SIZE,
+            self.tilemap.width, self.tilemap.height
+        )
 
         # Центрируем камеру на спавне игрока
         if self.tilemap.spawn_points:
@@ -62,7 +80,7 @@ class GameState:
         self.spatial_hash = SpatialHash(cell_size=128)
 
         # Туман войны
-        self.fog_of_war = FogOfWar(MAP_WIDTH_TILES, MAP_HEIGHT_TILES)
+        self.fog_of_war = FogOfWar(self.tilemap.width, self.tilemap.height)
 
         # Миникарта
         self.minimap = Minimap(self.tilemap, screen_w, screen_h)
@@ -70,10 +88,19 @@ class GameState:
         # Рендер-менеджер
         self.render_manager = RenderManager(self.tilemap)
 
+        # Тяжёлая предгенерация: сразу или отложенно (при инкрементальной загрузке)
+        if defer_pregen:
+            self._pregen_done = False
+        else:
+            self.minimap.pregen()
+            self.render_manager.terrain.pregen()
+            self._pregen_done = True
+
         # Игроки
         self.players = {}
-        self.players[0] = PlayerState(0)
-        self.players[1] = PlayerState(1)
+        for pid in range(max(2, player_count)):
+            self.players[pid] = PlayerState(pid, start_titan=start_titan,
+                                            start_plasma=start_plasma)
 
         # Сущности
         self.units = []
@@ -110,6 +137,13 @@ class GameState:
         # Дебаг
         self.debug_mode = False
         self.debug_fog = True
+
+    def finish_pregen(self):
+        """Догенерировать отложенную предгенерацию синхронно."""
+        if not self._pregen_done:
+            self.minimap.pregen()
+            self.render_manager.terrain.pregen()
+            self._pregen_done = True
 
     def add_entity(self, entity):
         if entity.is_building:
@@ -169,6 +203,12 @@ class Game:
         # Настройки
         self.settings_scroll = 0
 
+        # Экран создания матча
+        self.cm_cfg = None
+        self._cm_chips = {}
+        self._cm_spinners = {}
+        self._cm_buttons = []
+
         # Анимация меню
         self.menu_time = 0
 
@@ -194,6 +234,15 @@ class Game:
                 self.menu_time += dt
                 self._update_menu(events)
                 self._render_menu()
+            elif self.state == STATE_CREATE_MATCH:
+                self.menu_time += dt
+                self._update_create_match(events)
+                self._render_create_match()
+            elif self.state == STATE_LOADING:
+                self.menu_time += dt
+                self._update_loading(events)
+                self._advance_loading()
+                self._render_loading()
             elif self.state == STATE_PLAYING:
                 self._update_game(dt, events)
                 self._render_game()
@@ -234,7 +283,7 @@ class Game:
         start_y = self.screen_h // 2 - 40
 
         actions = [
-            self._start_singleplayer,
+            self._open_create_match,
             self._start_lobby,
             self._open_settings,
             self._quit,
@@ -352,8 +401,193 @@ class Game:
 
         random.seed()  # Сбрасываем сид
 
+    # ========================================
+    # CREATE MATCH (настройки матча)
+    # ========================================
+
+    def _open_create_match(self):
+        self.cm_cfg = self._default_match_settings()
+        self.state = STATE_CREATE_MATCH
+
+    def _cm_row_y(self, i):
+        return 130 + i * 58
+
+    def _update_create_match(self, events):
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.state = STATE_MENU
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self._handle_create_match_click(event.pos)
+
+    def _handle_create_match_click(self, pos):
+        cfg = self.cm_cfg
+
+        # Кнопка Back
+        back_rect = pygame.Rect(20, 20, 120, 40)
+        if back_rect.collidepoint(pos):
+            self.state = STATE_MENU
+            return
+
+        # Кнопки (Back/Start уже учтены, здесь — виджеты ряда)
+        for widget in self._cm_buttons:
+            if widget.handle_click(pos):
+                return
+
+        # Чипсы
+        for key, rects in self._cm_chips.items():
+            for idx, rect in enumerate(rects):
+                if rect.collidepoint(pos):
+                    if key == 'players':
+                        cfg['players'] = idx + 2          # 1 человек + N ИИ
+                    elif key == 'ai_difficulty':
+                        cfg['ai_difficulty'] = AI_DIFFICULTY_IDS[idx]
+                    elif key == 'map_size':
+                        cfg['map_size'] = ['small', 'medium', 'large'][idx]
+                    elif key == 'start_resources':
+                        cfg['start_resources'] = ['poor', 'normal', 'rich', 'mad'][idx]
+                    elif key == 'resource_density':
+                        cfg['resource_density'] = ['sparse', 'normal', 'rich'][idx]
+                    elif key == 'seed_random':
+                        cfg['seed'] = 0
+                    return
+
+        # Спиннеры
+        for key, (left, right, _value) in self._cm_spinners.items():
+            if left.collidepoint(pos):
+                if key == 'ai_strategy':
+                    idx = AI_STRATEGY_IDS.index(cfg['ai_strategy'])
+                    cfg['ai_strategy'] = AI_STRATEGY_IDS[(idx - 1) % len(AI_STRATEGY_IDS)]
+                elif key == 'seed':
+                    cfg['seed'] = max(0, int(cfg.get('seed') or 0) - 1)
+                return
+            if right.collidepoint(pos):
+                if key == 'ai_strategy':
+                    idx = AI_STRATEGY_IDS.index(cfg['ai_strategy'])
+                    cfg['ai_strategy'] = AI_STRATEGY_IDS[(idx + 1) % len(AI_STRATEGY_IDS)]
+                elif key == 'seed':
+                    cfg['seed'] = int(cfg.get('seed') or 0) + 1
+                return
+
+    def _render_create_match(self):
+        self.screen.fill(COLOR_BG)
+        self._render_starfield()
+        cfg = self.cm_cfg
+        self._cm_chips = {}
+        self._cm_spinners = {}
+        self._cm_buttons = []
+        mouse_pos = pygame.mouse.get_pos()
+
+        cx = self.screen_w // 2
+
+        # Заголовок
+        title = self.menu_font_large.render(t('create.title'), True, (0, 200, 255))
+        self.screen.blit(title, (cx - title.get_width() // 2, 22))
+
+        # Кнопка Back
+        back_rect = pygame.Rect(20, 20, 120, 40)
+        back = Button(back_rect, t('settings.back'), self.menu_font_small,
+                      kind='neutral', border_radius=6)
+        back.draw(self.screen, mouse_pos)
+        self._cm_buttons.append(back)
+
+        label_x = 70
+        chips_x = label_x + 250
+        row = 0
+
+        def chips(key, labels, current_idx):
+            rects, _ = draw_chip_row(self.screen, self.menu_font_small,
+                                     chips_x, self._cm_row_y(row) + 4,
+                                     labels, current_idx, mouse_pos)
+            self._cm_chips[key] = rects
+
+        def spinner(key, label_text):
+            l, r, _v = draw_spinner(self.screen, self.menu_font_small,
+                                    chips_x, self._cm_row_y(row) + 4,
+                                    label_text, width=170)
+            self._cm_spinners[key] = (l, r, _v)
+
+        # 1. Противники
+        text = self.menu_font_medium.render(t('create.opponents'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        chips('players', ['1', '2', '3'], cfg['players'] - 2)
+        row += 1
+
+        # 2. Сложность ИИ
+        text = self.menu_font_medium.render(t('create.difficulty'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        chips('ai_difficulty',
+              [t('ai.diff.' + d) for d in AI_DIFFICULTY_IDS],
+              AI_DIFFICULTY_IDS.index(cfg['ai_difficulty'])
+              if cfg['ai_difficulty'] in AI_DIFFICULTY_IDS else 1)
+        row += 1
+
+        # 3. Стратегия ИИ (спиннер — вариантов много)
+        text = self.menu_font_medium.render(t('create.strategy'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        strat_label = t('ai.strat.' + cfg.get('ai_strategy', 'random'))
+        spinner('ai_strategy', strat_label)
+        row += 1
+
+        # 4. Размер карты
+        text = self.menu_font_medium.render(t('create.map_size'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        chips('map_size',
+              [t('mapsize.' + s) for s in ('small', 'medium', 'large')],
+              ['small', 'medium', 'large'].index(cfg['map_size']))
+        row += 1
+
+        # 5. Стартовые ресурсы
+        text = self.menu_font_medium.render(t('create.start_resources'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        chips('start_resources',
+              [t('res.' + r) for r in ('poor', 'normal', 'rich', 'mad')],
+              ['poor', 'normal', 'rich', 'mad'].index(cfg['start_resources']))
+        row += 1
+
+        # 6. Плотность ресурсов
+        text = self.menu_font_medium.render(t('create.resource_density'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        chips('resource_density',
+              [t('density.' + d) for d in ('sparse', 'normal', 'rich')],
+              ['sparse', 'normal', 'rich'].index(cfg['resource_density']))
+        row += 1
+
+        # 7. Seed
+        text = self.menu_font_medium.render(t('create.seed'), True, COLOR_UI_TEXT)
+        self.screen.blit(text, (label_x, self._cm_row_y(row)))
+        seed_val = int(cfg.get('seed') or 0)
+        spinner('seed', t('create.seed_random') if seed_val == 0 else str(seed_val))
+        # Чипс «Случайно» рядом
+        rects, _ = draw_chip_row(self.screen, self.menu_font_small,
+                                 chips_x + 200, self._cm_row_y(row) + 4,
+                                 [t('create.seed_random')], -1, mouse_pos)
+        self._cm_chips['seed_random'] = rects
+        row += 1
+
+        # Кнопка старт
+        btn_w, btn_h = 380, 64
+        start_rect = pygame.Rect(cx - btn_w // 2, self.screen_h - 110, btn_w, btn_h)
+        start = Button(start_rect, t('create.start'), self.menu_font_medium,
+                       kind='accent', border_radius=10)
+        start.draw(self.screen, mouse_pos)
+        self._cm_buttons.append(start)
+        if start.rect.collidepoint(mouse_pos):
+            glow = pygame.Surface((btn_w + 20, btn_h + 20), pygame.SRCALPHA)
+            pygame.draw.rect(glow, (0, 150, 255, 30), (0, 0, btn_w + 20, btn_h + 20),
+                             border_radius=14)
+            self.screen.blit(glow, (start_rect.x - 10, start_rect.y - 10))
+
+        # Подсказка про цвет игрока
+        hint = self.menu_font_small.render(
+            t('create.opponents') + f": {cfg['players'] - 1} AI", True, COLOR_UI_TEXT_DIM)
+        self.screen.blit(hint, (cx - hint.get_width() // 2, self.screen_h - 130 - 26))
+
     def _show_loading_step(self, progress, status_text):
-        """Отрисовка экрана загрузки с прогрессбаром."""
+        """Отрисовка экрана загрузки с прогрессбаром (один кадр, без flip —
+        оставлено для совместимости; основной путь — STATE_LOADING)."""
         self.screen.fill((10, 12, 18))
         self._render_starfield()
 
@@ -388,32 +622,169 @@ class Game:
         pct_text = self.menu_font_small.render(f"{int(progress * 100)}%", True, COLOR_UI_TEXT)
         self.screen.blit(pct_text, (cx - pct_text.get_width() // 2, bar_y + bar_h + 8))
 
-        pygame.display.flip()
-        pygame.event.pump()
+    # ========================================
+    # ЗАГРУЗКА МАТЧА (инкрементальная)
+    # ========================================
 
-    def _start_singleplayer(self):
-        self._show_loading_step(0.05, t('loading.quantum_core'))
-        seed = random.randint(0, 999999)
+    def _default_match_settings(self):
+        """Настройки матча по умолчанию (сохранённые или базовые)."""
+        cfg = DEFAULT_MATCH_SETTINGS.copy()
+        for key in cfg:
+            saved = game_settings.get('last_match_' + key)
+            if saved is not None:
+                cfg[key] = saved
+        cfg['players'] = max(2, min(4, int(cfg['players'])))
+        return cfg
 
-        self._show_loading_step(0.20, t('loading.terrain'))
-        self.game_state = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=0)
-        self.game_state.clock = self.clock
+    def _save_match_settings(self, cfg):
+        for key, value in cfg.items():
+            game_settings.set('last_match_' + key, value)
 
-        self._show_loading_step(0.65, t('loading.deploy_units'))
-        self._spawn_starting_units(0)
+    def _start_singleplayer(self, match_settings=None):
+        """Запуск одиночной игры: переключаемся в состояние загрузки.
 
-        self._show_loading_step(0.85, t('loading.enemy_outpost'))
-        self._spawn_ai_units(1)
+        Тяжёлая работа выполняется по шагам в _match_load_iter(),
+        чтобы экран загрузки оставался живым и анимированным.
+        """
+        cfg = match_settings if match_settings is not None else self._default_match_settings()
+        cfg['players'] = max(2, min(4, int(cfg['players'])))
+        self._save_match_settings(cfg)
+        self._match_cfg = cfg
         self.total_players = 1
+        self._load_gen = self._match_load_iter(cfg)
+        self._load_progress = 0.0
+        self._load_label = t('loading.quantum_core')
+        self.state = STATE_LOADING
 
-        self._show_loading_step(1.00, t('loading.ready'))
-        time.sleep(0.2)
+    def _start_lobby(self):
+        """Временно: запускает одиночный матч (реальная сеть — отдельно)."""
+        self._start_singleplayer()
+
+    def _match_load_iter(self, cfg):
+        """Генератор загрузки матча: yield (progress, localization_key)."""
+        yield 0.02, 'loading.quantum_core'
+
+        seed = cfg.get('seed') or random.randint(0, 999999)
+        self._match_seed = seed
+        size = MATCH_SIZES.get(cfg.get('map_size', 'medium'), 256)
+
+        # 1) Генерация ландшафта (чанками)
+        tm = TileMap(size, size, seed=seed, spawn_count=cfg['players'],
+                     resource_density=MATCH_DENSITY.get(cfg.get('resource_density', 'normal'), 1.0))
+        for p, label in tm.generate_iter():
+            yield 0.05 + p * 0.40, label
+
+        # 2) Скелет игрового мира (без тяжёлой предгенерации)
+        start_titan, start_plasma = MATCH_START_RESOURCES.get(
+            cfg.get('start_resources', 'normal'), (STARTING_TITAN, STARTING_PLASMA))
+        gs = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=0,
+                       tilemap=tm, player_count=cfg['players'],
+                       start_titan=start_titan, start_plasma=start_plasma,
+                       defer_pregen=True, match_settings=cfg)
+        self.game_state = gs
+        gs.clock = self.clock
+        yield 0.46, 'loading.quantum_core'
+
+        # 3) Предгенерация миникарты (чанками)
+        for p, _ in gs.minimap.pregen_iter():
+            yield 0.46 + p * 0.22, 'loading.minimap'
+
+        # 4) Предгенерация деталей тайлов (чанками)
+        for p, _ in gs.render_manager.terrain.pregen_iter():
+            yield 0.68 + p * 0.17, 'loading.tile_details'
+
+        # 5) Юниты игроков
+        for pid in range(cfg['players']):
+            self._spawn_starting_units(pid)
+        yield 0.88, 'loading.deploy_units'
+
+        # 6) ИИ-противники
+        self._setup_ai_brains(cfg)
+        yield 0.97, 'loading.ready'
+
+    def _setup_ai_brains(self, cfg):
+        """Создать ИИ-мозги для всех нечеловеческих игроков.
+
+        В одиночной игре человек всегда player 0, остальные — ИИ.
+        """
+        from ai.brain import AIBrain
+
+        self.ai_brains = {}
+        difficulty = cfg.get('ai_difficulty', 'standard')
+        strategy = cfg.get('ai_strategy', 'random')
+
+        for pid in range(1, len(self.game_state.players)):
+            brain = AIBrain(pid, difficulty=difficulty, strategy=strategy)
+            self.ai_brains[pid] = brain
+
+    def _update_loading(self, events):
+        """Обработка событий на экране загрузки."""
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+
+    def _advance_loading(self, time_budget=0.024):
+        """Продвинуть загрузку на ограниченный бюджет времени."""
+        if self._load_gen is None:
+            return
+        deadline = time.perf_counter() + time_budget
+        try:
+            while time.perf_counter() < deadline:
+                progress, label = next(self._load_gen)
+                self._load_progress = progress
+                if label:
+                    self._load_label = t(label)
+        except StopIteration:
+            self._load_gen = None
+            self._finish_loading()
+
+    def _finish_loading(self):
         self.match_start_countdown = 3.5  # 3... 2... 1... BATTLE START!
         self.state = STATE_PLAYING
 
-    def _start_lobby(self):
-        self._start_singleplayer()
-        self.total_players = 2
+    def _render_loading(self):
+        """Анимированный экран загрузки."""
+        self.screen.fill((10, 12, 18))
+        self._render_starfield()
+
+        cx = self.screen_w // 2
+        cy = self.screen_h // 2
+        progress = max(0.0, min(1.0, self._load_progress))
+
+        # Заголовок
+        title = self.menu_font_large.render(GAME_TITLE, True, COLOR_UI_TEXT)
+        self.screen.blit(title, (cx - title.get_width() // 2, cy - 110))
+
+        # Анимированное описание этапа
+        dots = '.' * (1 + int(self.menu_time * 2) % 3)
+        status = self.menu_font_medium.render(self._load_label + dots, True, COLOR_UI_ACCENT)
+        self.screen.blit(status, (cx - status.get_width() // 2, cy - 34))
+
+        # Прогрессбар
+        bar_w = 480
+        bar_h = 24
+        bar_x = cx - bar_w // 2
+        bar_y = cy + 20
+
+        pygame.draw.rect(self.screen, (20, 25, 35), (bar_x, bar_y, bar_w, bar_h), border_radius=12)
+        pygame.draw.rect(self.screen, COLOR_UI_PANEL_BORDER, (bar_x, bar_y, bar_w, bar_h), 2, border_radius=12)
+
+        fill_w = int((bar_w - 6) * progress)
+        if fill_w > 0:
+            fill_rect = pygame.Rect(bar_x + 3, bar_y + 3, fill_w, bar_h - 6)
+            pygame.draw.rect(self.screen, COLOR_UI_ACCENT, fill_rect, border_radius=8)
+
+            # Бегущий блик по заполненной части
+            shine_x = bar_x + 3 + int((fill_w + bar_w) * ((self.menu_time * 0.4) % 1.0)) - bar_w
+            shine_rect = pygame.Rect(shine_x, bar_y + 3, 26, bar_h - 6)
+            if shine_rect.right > bar_x + 3 and shine_rect.left < bar_x + 3 + fill_w:
+                shine = pygame.Surface((26, bar_h - 6), pygame.SRCALPHA)
+                shine.fill((255, 255, 255, 40))
+                self.screen.blit(shine, (max(shine_rect.x, bar_x + 3), shine_rect.y))
+
+        # Процент
+        pct_text = self.menu_font_small.render(f"{int(progress * 100)}%", True, COLOR_UI_TEXT)
+        self.screen.blit(pct_text, (cx - pct_text.get_width() // 2, bar_y + bar_h + 8))
 
     def _open_settings(self):
         self._previous_state = STATE_MENU
@@ -805,8 +1176,8 @@ class Game:
 
         if event.button == 3 and gs.minimap.is_point_on_minimap(*event.pos):
             world_x, world_y = gs.minimap.minimap_to_world(*event.pos)
-            world_x = max(0, min(world_x, MAP_WIDTH))
-            world_y = max(0, min(world_y, MAP_HEIGHT))
+            world_x = max(0, min(world_x, gs.tilemap.width * TILE_SIZE))
+            world_y = max(0, min(world_y, gs.tilemap.height * TILE_SIZE))
             for unit in gs.selection.selected_entities:
                 if unit.is_unit and unit.player_id == gs.local_player_id:
                     unit.move_to_point(world_x, world_y, gs.tilemap)

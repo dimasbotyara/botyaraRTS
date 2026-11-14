@@ -32,6 +32,104 @@ TRANSLATIONS = {
     },
 
     # ============================
+    # CREATE MATCH SCREEN
+    # ============================
+    'create.title': {
+        'en': '⚔  Create Battle',
+        'ru': '⚔  Создание битвы',
+    },
+    'create.start': {
+        'en': '▶  START BATTLE',
+        'ru': '▶  НАЧАТЬ БИТВУ',
+    },
+    'create.opponents': {
+        'en': 'Opponents (AI)',
+        'ru': 'Противники (ИИ)',
+    },
+    'create.difficulty': {
+        'en': 'AI Difficulty',
+        'ru': 'Сложность ИИ',
+    },
+    'create.strategy': {
+        'en': 'AI Strategy',
+        'ru': 'Стратегия ИИ',
+    },
+    'create.map_size': {
+        'en': 'Map Size',
+        'ru': 'Размер карты',
+    },
+    'create.start_resources': {
+        'en': 'Starting Resources',
+        'ru': 'Стартовые ресурсы',
+    },
+    'create.resource_density': {
+        'en': 'Resource Density',
+        'ru': 'Плотность ресурсов',
+    },
+    'create.seed': {
+        'en': 'Map Seed',
+        'ru': 'Seed карты',
+    },
+    'create.seed_random': {
+        'en': 'Random',
+        'ru': 'Случайно',
+    },
+
+    # Значения настроек матча
+    'mapsize.small': {'en': 'Small', 'ru': 'Малая'},
+    'mapsize.medium': {'en': 'Medium', 'ru': 'Средняя'},
+    'mapsize.large': {'en': 'Large', 'ru': 'Большая'},
+    'res.poor': {'en': 'Poor', 'ru': 'Скудно'},
+    'res.normal': {'en': 'Normal', 'ru': 'Норма'},
+    'res.rich': {'en': 'Rich', 'ru': 'Богато'},
+    'res.mad': {'en': 'Abundant', 'ru': 'Море'},
+    'density.sparse': {'en': 'Sparse', 'ru': 'Редко'},
+    'density.normal': {'en': 'Normal', 'ru': 'Норма'},
+    'density.rich': {'en': 'Rich', 'ru': 'Много'},
+
+    # ============================
+    # AI: СЛОЖНОСТИ И СТРАТЕГИИ
+    # ============================
+    'ai.diff.novice': {'en': 'Novice', 'ru': 'Новобранец'},
+    'ai.diff.standard': {'en': 'Soldier', 'ru': 'Солдат'},
+    'ai.diff.veteran': {'en': 'Veteran', 'ru': 'Ветеран'},
+    'ai.diff.nightmare': {'en': 'Nightmare', 'ru': 'Кошмар'},
+    'ai.strat.random': {'en': 'Random', 'ru': 'Случайно'},
+    'ai.strat.balanced': {'en': 'Balanced', 'ru': 'Сбалансированный'},
+    'ai.strat.rush': {'en': 'Early Rush', 'ru': 'Ранняя атака'},
+    'ai.strat.defense': {'en': 'Fortress', 'ru': 'Оборона'},
+    'ai.strat.air_only': {'en': 'Air Force', 'ru': 'Только авиация'},
+    'ai.strat.eco': {'en': 'Economist', 'ru': 'Экономист'},
+    'ai.strat.swarm': {'en': 'Swarm', 'ru': 'Рой'},
+    'ai.strat.tech': {'en': 'Tech', 'ru': 'Технарь'},
+    'ai.strat.siege': {'en': 'Siege Push', 'ru': 'Осада'},
+    'ai.strat.harass': {'en': 'Saboteur', 'ru': 'Диверсии'},
+
+    # ============================
+    # СДАЧА БОТА
+    # ============================
+    'surrender.title': {
+        'en': '⚑  The enemy requests surrender!',
+        'ru': '⚑  Противник просит о сдаче!',
+    },
+    'surrender.hint': {
+        'en': 'Their army is doomed. Accept victory or make them fight on.',
+        'ru': 'Их армия обречена. Примите победу или заставьте их драться.',
+    },
+    'surrender.accept': {
+        'en': '✔ Accept Victory',
+        'ru': '✔ Принять победу',
+    },
+    'surrender.decline': {
+        'en': '⚔ Force Them to Fight',
+        'ru': '⚔ Заставить играть дальше',
+    },
+    'gameover.surrender': {
+        'en': 'The enemy surrendered',
+        'ru': 'Противник сдался',
+    },
+
+    # ============================
     # LOADING SCREEN
     # ============================
     'loading.quantum_core': {
@@ -39,8 +137,32 @@ TRANSLATIONS = {
         'ru': 'Инициализация квантового ядра...',
     },
     'loading.terrain': {
-        'en': 'Generating 320x320 Terrain Grid...',
-        'ru': 'Генерация ландшафта 320x320...',
+        'en': 'Generating Terrain Grid...',
+        'ru': 'Генерация ландшафта...',
+    },
+    'loading.ramps': {
+        'en': 'Carving Ramps & Cliffs...',
+        'ru': 'Формирование рамп и обрывов...',
+    },
+    'loading.spawn_zones': {
+        'en': 'Preparing Base Locations...',
+        'ru': 'Подготовка баз игроков...',
+    },
+    'loading.resources': {
+        'en': 'Seeding Titan Deposits & Plasma Geysers...',
+        'ru': 'Размещение залежей титана и гейзеров плазмы...',
+    },
+    'loading.connectivity': {
+        'en': 'Verifying Path Connectivity...',
+        'ru': 'Проверка проходимости карты...',
+    },
+    'loading.minimap': {
+        'en': 'Rendering Tactical Minimap...',
+        'ru': 'Рендер тактической миникарты...',
+    },
+    'loading.tile_details': {
+        'en': 'Sculpting Terrain Details...',
+        'ru': 'Прорисовка деталей ландшафта...',
     },
     'loading.deploy_units': {
         'en': 'Deploying Player Headquarters & Field Units...',

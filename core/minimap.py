@@ -12,18 +12,17 @@ class Minimap:
         self.screen_w = screen_w
         self.screen_h = screen_h
 
+        # Размер мира в пикселях (может отличаться от констант)
+        self.world_w = tilemap.width * TILE_SIZE
+        self.world_h = tilemap.height * TILE_SIZE
+
         # Размер и позиция (выровнены по высоте с центральной панелью HUD)
         self.size = 200
         self.padding = 10
         self.update_position()
 
-        # Масштаб: мир → миникарта
-        self.scale_x = self.size / MAP_WIDTH
-        self.scale_y = self.size / MAP_HEIGHT
-
-        # Кэш ландшафта (рисуется один раз)
+        # Кэш ландшафта (рисуется один раз, можно чанками при загрузке)
         self.terrain_surface = pygame.Surface((self.size, self.size))
-        self._render_terrain()
 
         # Пинги
         self.pings = []  # [(world_x, world_y, color, timer), ...]
@@ -38,21 +37,34 @@ class Minimap:
         self.x = self.padding
         self.y = self.screen_h - self.size - 10
         self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
-        self.scale_x = self.size / MAP_WIDTH
-        self.scale_y = self.size / MAP_HEIGHT
+        self.scale_x = self.size / self.world_w
+        self.scale_y = self.size / self.world_h
 
-    def _render_terrain(self):
-        """Отрисовка ландшафта на кэшированную поверхность."""
+    def pregen(self):
+        """Синхронный пре-рендер ландшафта (для тестов)."""
+        for _ in self.pregen_iter():
+            pass
+
+    def pregen_iter(self):
+        """Чанковый пре-рендер ландшафта: yield (progress, None).
+
+        Разбит на полосы, чтобы экран загрузки перерисовывался между шагами.
+        """
         self.terrain_surface.fill(COLOR_MINIMAP_BG)
-
-        for ty in range(self.tilemap.height):
-            for tx in range(self.tilemap.width):
-                color = self.tilemap.get_tile_color(tx, ty)
-                mx = int(tx * self.scale_x * TILE_SIZE)
-                my = int(ty * self.scale_y * TILE_SIZE)
-                w = max(1, int(self.scale_x * TILE_SIZE))
-                h = max(1, int(self.scale_y * TILE_SIZE))
-                pygame.draw.rect(self.terrain_surface, color, (mx, my, w, h))
+        band = 24
+        y = 0
+        while y < self.tilemap.height:
+            y_end = min(y + band, self.tilemap.height)
+            for ty in range(y, y_end):
+                for tx in range(self.tilemap.width):
+                    color = self.tilemap.get_tile_color(tx, ty)
+                    mx = int(tx * self.scale_x * TILE_SIZE)
+                    my = int(ty * self.scale_y * TILE_SIZE)
+                    w = max(1, int(self.scale_x * TILE_SIZE))
+                    h = max(1, int(self.scale_y * TILE_SIZE))
+                    pygame.draw.rect(self.terrain_surface, color, (mx, my, w, h))
+            y = y_end
+            yield y / self.tilemap.height, None
 
     def world_to_minimap(self, wx, wy):
         """Мировые координаты → координаты на миникарте."""
@@ -76,8 +88,8 @@ class Minimap:
             return False
 
         wx, wy = self.minimap_to_world(sx, sy)
-        wx = max(0, min(wx, MAP_WIDTH))
-        wy = max(0, min(wy, MAP_HEIGHT))
+        wx = max(0, min(wx, self.world_w))
+        wy = max(0, min(wy, self.world_h))
 
         if button == 'left':
             camera.center_on(wx, wy, instant=True)
@@ -89,8 +101,8 @@ class Minimap:
         if not self.dragging:
             return
         wx, wy = self.minimap_to_world(sx, sy)
-        wx = max(0, min(wx, MAP_WIDTH))
-        wy = max(0, min(wy, MAP_HEIGHT))
+        wx = max(0, min(wx, self.world_w))
+        wy = max(0, min(wy, self.world_h))
         camera.center_on(wx, wy, instant=True)
 
     def handle_release(self):
@@ -112,7 +124,7 @@ class Minimap:
         for p in self.pings:
             p['timer'] -= dt
 
-    def render(self, surface, camera, entities=None, fog_of_war=None):
+    def render(self, surface, camera, entities=None, fog_of_war=None, local_player_id=0):
         """Отрисовка миникарты."""
         # Фон ландшафта
         surface.blit(self.terrain_surface, (self.x, self.y))
@@ -125,14 +137,14 @@ class Minimap:
             for entity in entities:
                 # Если есть туман войны — показываем только видимых
                 if fog_of_war and not fog_of_war.is_visible_world(entity.x, entity.y):
-                    if hasattr(entity, 'player_id') and entity.player_id != 0:
+                    if hasattr(entity, 'player_id') and entity.player_id != local_player_id:
                         continue
 
                 mx, my = self.world_to_minimap(entity.x, entity.y)
                 if self.rect.collidepoint(mx, my):
                     color = COLOR_MINIMAP_FRIENDLY
                     if hasattr(entity, 'player_id'):
-                        if entity.player_id != 0:  # Не наш
+                        if entity.player_id != local_player_id:  # Не наш
                             color = COLOR_MINIMAP_ENEMY
 
                     size = 2

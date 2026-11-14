@@ -2,6 +2,9 @@
 botyaraRTS - core/tilemap.py
 Тайловая карта с процедурной генерацией (Perlin Noise),
 высотами, стенами, рампами и ресурсами.
+
+Генерация инкрементальная: generate_iter() отдаёт (прогресс, label)
+после каждой полосы тайлов, чтобы экран загрузки оставался живым.
 """
 import pygame
 import random
@@ -14,10 +17,10 @@ class SimplexNoise:
     """Упрощённый value noise с интерполяцией для генерации карт."""
 
     def __init__(self, seed=None):
-        self.seed = seed if seed else random.randint(0, 999999)
-        random.seed(self.seed)
+        # Локальный RNG: не трогаем глобальное состояние random
+        rng = random.Random(seed if seed else 0)
         self.perm = list(range(256))
-        random.shuffle(self.perm)
+        rng.shuffle(self.perm)
         self.perm *= 2
 
     def _noise2d(self, x, y):
@@ -81,10 +84,13 @@ TILE_PLASMA_GEYSER = 5
 class TileMap:
     """Тайловая карта мира."""
 
-    def __init__(self, width=MAP_WIDTH_TILES, height=MAP_HEIGHT_TILES, seed=None):
+    def __init__(self, width=MAP_WIDTH_TILES, height=MAP_HEIGHT_TILES,
+                 seed=None, spawn_count=2, resource_density=1.0):
         self.width = width
         self.height = height
         self.seed = seed if seed else random.randint(0, 999999)
+        self.spawn_count = max(2, min(4, int(spawn_count)))
+        self.resource_density = float(resource_density)
 
         # Данные карты
         self.tiles = [[TILE_GROUND] * width for _ in range(height)]
@@ -105,82 +111,129 @@ class TileMap:
         # Генерация
         self.generate()
 
+    # ========================================
+    # ГЕНЕРАЦИЯ (инкрементальная)
+    # ========================================
+
     def generate(self):
-        """Процедурная генерация карты."""
-        random.seed(self.seed)
+        """Синхронная генерация (для тестов и прямого использования)."""
+        for _ in self.generate_iter():
+            pass
+
+    def generate_iter(self):
+        """Инкрементальная генерация карты.
+
+        Генератор: yield (progress 0..1, localization_key_or_None).
+        Между yield'ами выполняется ограниченный объём работы,
+        чтобы экран загрузки мог перерисовываться между шагами.
+        """
+        rng = random.Random(self.seed)
         noise = SimplexNoise(self.seed)
         noise2 = SimplexNoise(self.seed + 42)
 
-        # Шаг 1: Генерация высот через шум
-        for y in range(self.height):
-            for x in range(self.width):
-                # Основной шум для высот
-                h = noise.octave_noise(x, y, octaves=5, persistence=0.5, scale=0.015)
+        # --- Шаг 1: высоты и препятствия (полосами по 16 рядов) ---
+        band = 16
+        y = 0
+        while y < self.height:
+            y_end = min(y + band, self.height)
+            for ty in range(y, y_end):
+                for tx in range(self.width):
+                    h = noise.octave_noise(tx, ty, octaves=5, persistence=0.5, scale=0.015)
+                    w = noise2.octave_noise(tx, ty, octaves=3, persistence=0.6, scale=0.03)
 
-                # Дополнительный шум для стен/препятствий
-                w = noise2.octave_noise(x, y, octaves=3, persistence=0.6, scale=0.03)
+                    if h < 0.35:
+                        self.heights[ty][tx] = HEIGHT_LOW
+                    elif h < 0.6:
+                        self.heights[ty][tx] = HEIGHT_MID
+                    else:
+                        self.heights[ty][tx] = HEIGHT_HIGH
 
-                # Определяем высоту
-                if h < 0.35:
-                    self.heights[y][x] = HEIGHT_LOW
-                elif h < 0.6:
-                    self.heights[y][x] = HEIGHT_MID
-                else:
-                    self.heights[y][x] = HEIGHT_HIGH
+                    if w > 0.72 and h > 0.3:
+                        self.tiles[ty][tx] = TILE_WALL
 
-                # Стены (скалы)
-                if w > 0.72 and h > 0.3:
-                    self.tiles[y][x] = TILE_WALL
+                    if h < 0.2 and w < 0.5:
+                        self.tiles[ty][tx] = TILE_WATER
+            y = y_end
+            yield 0.45 * (y / self.height), 'loading.terrain'
 
-                # Вода в низинах
-                if h < 0.2 and w < 0.5:
-                    self.tiles[y][x] = TILE_WATER
+        # --- Шаг 2: рампы (полосами) ---
+        y = 1
+        while y < self.height - 1:
+            y_end = min(y + band, self.height - 1)
+            for ty in range(y, y_end):
+                for tx in range(1, self.width - 1):
+                    if self.tiles[ty][tx] != TILE_GROUND:
+                        continue
+                    h = self.heights[ty][tx]
+                    has_lower = False
+                    has_higher = False
+                    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                        nh = self.heights[ty + dy][tx + dx]
+                        if nh < h and self.tiles[ty + dy][tx + dx] == TILE_GROUND:
+                            has_lower = True
+                        if nh > h and self.tiles[ty + dy][tx + dx] == TILE_GROUND:
+                            has_higher = True
+                    if (has_lower or has_higher) and rng.random() < 0.3:
+                        self.ramps[ty][tx] = True
+                        self.tiles[ty][tx] = TILE_RAMP
+            y = y_end
+            yield 0.45 + 0.10 * (y / self.height), 'loading.ramps'
 
-        # Шаг 2: Генерация рамп (переходы между высотами)
-        self._generate_ramps()
-
-        # Шаг 3: Спавн-зоны (противоположные углы карты)
-        margin = 25
-        self.spawn_points = [
-            (margin, margin),
-            (self.width - margin, self.height - margin),
-        ]
-        # Очищаем зоны вокруг спавнов
+        # --- Шаг 3: спавн-зоны ---
+        self._place_spawn_points(rng)
         for sx, sy in self.spawn_points:
             self._clear_spawn_zone(sx, sy, radius=15)
+        yield 0.58, 'loading.spawn_zones'
 
-        # Шаг 4: Ресурсы
-        self._generate_resources()
+        # --- Шаг 4: ресурсы (аккуратные симметричные патчи) ---
+        for progress, _ in self._generate_resources_iter(rng):
+            yield 0.58 + 0.32 * progress, 'loading.resources'
 
-        # Шаг 5: Проверка проходимости между спавнами
+        # --- Шаг 5: связность спавнов ---
         self._ensure_connectivity()
+        yield 1.0, 'loading.connectivity'
 
         self._dirty = True
 
-    def _generate_ramps(self):
-        """Создание рамп на границах разных высот."""
-        for y in range(1, self.height - 1):
-            for x in range(1, self.width - 1):
-                if self.tiles[y][x] != TILE_GROUND:
-                    continue
+    def _place_spawn_points(self, rng):
+        """Расставить спавны: 2 — по диагонали, 3 — треугольник, 4 — по углам."""
+        margin = 25
+        w, h = self.width, self.height
 
-                h = self.heights[y][x]
-                # Проверяем соседей — если рядом есть тайл другой высоты
-                has_lower = False
-                has_higher = False
-                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < self.width and 0 <= ny < self.height:
-                        nh = self.heights[ny][nx]
-                        if nh < h and self.tiles[ny][nx] == TILE_GROUND:
-                            has_lower = True
-                        if nh > h and self.tiles[ny][nx] == TILE_GROUND:
-                            has_higher = True
+        if self.spawn_count == 2:
+            candidates = [(margin, margin), (w - margin, h - margin)]
+        elif self.spawn_count == 3:
+            cx, cy = w // 2, h // 2
+            r = int(min(w, h) * 0.33)
+            candidates = []
+            for i in range(3):
+                a = -math.pi / 2 + i * 2 * math.pi / 3
+                candidates.append((int(cx + math.cos(a) * r),
+                                   int(cy + math.sin(a) * r)))
+        else:
+            candidates = [(margin, margin), (w - margin, margin),
+                          (w - margin, h - margin), (margin, h - margin)]
 
-                # Рампа на границе высот (с шансом, чтобы не было слишком много)
-                if (has_lower or has_higher) and random.random() < 0.3:
-                    self.ramps[y][x] = True
-                    self.tiles[y][x] = TILE_RAMP
+        self.spawn_points = []
+        for px, py in candidates:
+            px = max(margin, min(w - margin - 1, px))
+            py = max(margin, min(h - margin - 1, py))
+            self.spawn_points.append(self._nearest_open_tile(px, py))
+
+    def _nearest_open_tile(self, tx, ty, max_radius=30):
+        """Спиральный поиск ближайшего проходимого тайла."""
+        if self.is_walkable(tx, ty):
+            return (tx, ty)
+        for r in range(1, max_radius):
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    if max(abs(dx), abs(dy)) != r:
+                        continue
+                    nx, ny = tx + dx, ty + dy
+                    if 0 <= nx < self.width and 0 <= ny < self.height \
+                            and self.is_walkable(nx, ny):
+                        return (nx, ny)
+        return (tx, ty)
 
     def _clear_spawn_zone(self, cx, cy, radius=15):
         """Очистить зону вокруг спавна — плоская земля."""
@@ -193,65 +246,144 @@ class TileMap:
                         self.heights[y][x] = HEIGHT_MID
                         self.ramps[y][x] = False
 
-    def _generate_resources(self):
-        """Размещение ресурсов (титан и плазма)."""
+    # ========================================
+    # РЕСУРСЫ: аккуратные патчи с симметрией
+    # ========================================
+
+    def _generate_resources_iter(self, rng):
+        """Размещение ресурсов.
+
+        Правила:
+        - компактные круглые патчи титана (центр + кольца), а не аморфные блобы;
+        - зеркальная симметрия кластеров относительно центра карты (честность);
+        - минимальная дистанция между кластерами и от баз;
+        - гейзеры плазмы парами возле кластеров;
+        - гарантированная база у каждого спавна (кольцо титана + 2 гейзера).
+        """
         self.titan_deposits = []
         self.plasma_geysers = []
 
-        # Генерируем кластеры ресурсов
-        num_clusters = 16
-        random.seed(self.seed + 100)
+        w, h = self.width, self.height
+        margin = 14
+        base_keepout = 19          # дистанция нейтральных кластеров от баз
+        cluster_min_dist = 16      # минимальная дистанция между кластерами
 
-        for _ in range(num_clusters):
-            cx = random.randint(20, self.width - 20)
-            cy = random.randint(20, self.height - 20)
+        ring1 = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        ring2 = [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 1), (-2, -1),
+                 (1, 2), (-1, -2), (2, -1), (-2, 1), (1, -2), (-1, 2)]
 
-            # Не ставим ресурсы на стены или воду
+        def patch_tiles(cx, cy, size):
+            """Компактный патч: центр + заполненные кольца."""
+            tiles = [(cx, cy)]
+            for ring in (ring1, ring2):
+                offsets = ring[:]
+                rng.shuffle(offsets)
+                for dx, dy in offsets:
+                    if len(tiles) >= size:
+                        break
+                    tiles.append((cx + dx, cy + dy))
+            return tiles
+
+        def near_spawn(cx, cy, keepout):
+            for sx, sy in self.spawn_points:
+                if (cx - sx) ** 2 + (cy - sy) ** 2 < keepout * keepout:
+                    return True
+            return False
+
+        def placeable(cx, cy):
+            if not (margin <= cx < w - margin and margin <= cy < h - margin):
+                return False
             if self.tiles[cy][cx] != TILE_GROUND:
+                return False
+            return not near_spawn(cx, cy, base_keepout)
+
+        def place_titan_patch(cx, cy, size):
+            count = 0
+            for tx, ty in patch_tiles(cx, cy, size):
+                if 0 <= tx < w and 0 <= ty < h and self.tiles[ty][tx] == TILE_GROUND:
+                    self.tiles[ty][tx] = TILE_TITAN_ORE
+                    self.titan_deposits.append((tx, ty))
+                    count += 1
+            return count
+
+        def place_geyser_pair(cx, cy, dx, dy):
+            """Пара гейзеров рядом друг с другом."""
+            count = 0
+            for ox, oy in ((dx, dy), (dx + 1, dy)):
+                tx, ty = cx + ox, cy + oy
+                if 0 <= tx < w and 0 <= ty < h and self.tiles[ty][tx] == TILE_GROUND:
+                    self.tiles[ty][tx] = TILE_PLASMA_GEYSER
+                    self.plasma_geysers.append((tx, ty))
+                    count += 1
+            return count
+
+        # --- 1) Гарантированная база у каждого спавна ---
+        for sx, sy in self.spawn_points:
+            # Ровное кольцо из 8 тайлов титана
+            base_rot = rng.uniform(0, math.pi / 4)
+            for i in range(8):
+                angle = base_rot + (i / 8) * math.pi * 2
+                tx = int(round(sx + math.cos(angle) * 10))
+                ty = int(round(sy + math.sin(angle) * 10))
+                if 0 <= tx < w and 0 <= ty < h and self.tiles[ty][tx] == TILE_GROUND:
+                    self.tiles[ty][tx] = TILE_TITAN_ORE
+                    self.titan_deposits.append((tx, ty))
+
+            # Два гейзера на безопасной дистанции
+            for angle in (base_rot + 0.7, base_rot + 0.7 + math.pi):
+                tx = int(round(sx + math.cos(angle) * 7))
+                ty = int(round(sy + math.sin(angle) * 7))
+                if 0 <= tx < w and 0 <= ty < h and self.tiles[ty][tx] == TILE_GROUND:
+                    self.tiles[ty][tx] = TILE_PLASMA_GEYSER
+                    self.plasma_geysers.append((tx, ty))
+        yield 0.25, None
+
+        # --- 2) Нейтральные кластеры с зеркальной симметрией ---
+        area = w * h
+        base_clusters = max(4, int(area / 6400))
+        num_clusters = max(2, int(base_clusters * self.resource_density))
+
+        placed_centers = []
+        attempts = 0
+        max_attempts = num_clusters * 80
+
+        while len(placed_centers) < num_clusters and attempts < max_attempts:
+            attempts += 1
+            cx = rng.randint(margin, w - margin - 1)
+            cy = rng.randint(margin, h - margin - 1)
+
+            if not placeable(cx, cy):
+                continue
+            if any((cx - ox) ** 2 + (cy - oy) ** 2 < cluster_min_dist ** 2
+                   for ox, oy in placed_centers):
                 continue
 
-            # Кластер титана (5-8 тайлов)
-            for i in range(random.randint(5, 8)):
-                dx = random.randint(-3, 3)
-                dy = random.randint(-3, 3)
-                tx, ty = cx + dx, cy + dy
-                if 0 <= tx < self.width and 0 <= ty < self.height:
-                    if self.tiles[ty][tx] == TILE_GROUND:
-                        self.tiles[ty][tx] = TILE_TITAN_ORE
-                        self.titan_deposits.append((tx, ty))
+            # Зеркальная пара относительно центра карты
+            mx, my = w - 1 - cx, h - 1 - cy
+            mirror_ok = (mx, my) != (cx, cy) and placeable(mx, my) and \
+                all((mx - ox) ** 2 + (my - oy) ** 2 >= cluster_min_dist ** 2
+                    for ox, oy in placed_centers)
 
-            # 1-2 гейзера плазмы рядом
-            for _ in range(random.randint(1, 2)):
-                dx = random.randint(-5, 5)
-                dy = random.randint(-5, 5)
-                tx, ty = cx + dx, cy + dy
-                if 0 <= tx < self.width and 0 <= ty < self.height:
-                    if self.tiles[ty][tx] == TILE_GROUND:
-                        self.tiles[ty][tx] = TILE_PLASMA_GEYSER
-                        self.plasma_geysers.append((tx, ty))
+            size = rng.randint(6, 9)
+            place_titan_patch(cx, cy, size)
+            if mirror_ok:
+                place_titan_patch(mx, my, size)
 
-        # Гарантированные ресурсы рядом со спавнами
-        for sx, sy in self.spawn_points:
-            for i in range(8):
-                angle = (i / 8) * math.pi * 2
-                r = random.randint(8, 12)
-                tx = int(sx + math.cos(angle) * r)
-                ty = int(sy + math.sin(angle) * r)
-                if 0 <= tx < self.width and 0 <= ty < self.height:
-                    if self.tiles[ty][tx] == TILE_GROUND:
-                        self.tiles[ty][tx] = TILE_TITAN_ORE
-                        self.titan_deposits.append((tx, ty))
+            # Гейзеры возле кластера
+            gdx = rng.randint(-4, 3)
+            gdy = rng.randint(-4, 3)
+            place_geyser_pair(cx, cy, gdx, gdy)
+            if mirror_ok:
+                place_geyser_pair(mx, my, -gdx - 1, gdy)
 
-            # Плазма рядом со спавном
-            for i in range(2):
-                angle = (i / 2) * math.pi * 2 + 0.5
-                r = random.randint(6, 10)
-                tx = int(sx + math.cos(angle) * r)
-                ty = int(sy + math.sin(angle) * r)
-                if 0 <= tx < self.width and 0 <= ty < self.height:
-                    if self.tiles[ty][tx] == TILE_GROUND:
-                        self.tiles[ty][tx] = TILE_PLASMA_GEYSER
-                        self.plasma_geysers.append((tx, ty))
+            placed_centers.append((cx, cy))
+            if mirror_ok:
+                placed_centers.append((mx, my))
+
+            progress = len(placed_centers) / max(1, num_clusters)
+            yield 0.25 + 0.75 * min(1.0, progress), None
+
+        yield 1.0, None
 
     def _ensure_connectivity(self):
         """Проверить что все спавны связаны путями. Если нет — прорубаем коридор."""
@@ -260,11 +392,9 @@ class TileMap:
 
         from core.pathfinding import path_exists
         sx1, sy1 = self.spawn_points[0]
-        sx2, sy2 = self.spawn_points[1]
-
-        if not path_exists(self, sx1, sy1, sx2, sy2):
-            # Прорубаем прямой коридор
-            self._carve_corridor(sx1, sy1, sx2, sy2)
+        for sx2, sy2 in self.spawn_points[1:]:
+            if not path_exists(self, sx1, sy1, sx2, sy2):
+                self._carve_corridor(sx1, sy1, sx2, sy2)
 
     def _carve_corridor(self, x1, y1, x2, y2, width=3):
         """Прорубить проходимый коридор между двумя точками."""
