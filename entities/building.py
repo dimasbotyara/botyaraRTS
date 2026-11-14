@@ -164,14 +164,22 @@ class Building(Entity):
         self.production_queue.append((unit_class, temp_unit.build_time, 0))
         return True
 
-    def cancel_production(self, index=None):
-        """Отменить производство (возврат ресурсов)."""
+    def cancel_production(self, index=None, game_state=None):
+        """Отменить производство с возвратом ресурсов (если есть game_state)."""
         if not self.production_queue:
             return
 
         idx = index if index is not None else len(self.production_queue) - 1
         if 0 <= idx < len(self.production_queue):
-            self.production_queue.pop(idx)
+            unit_class, build_time, elapsed = self.production_queue.pop(idx)
+            if game_state is not None:
+                player = game_state.players.get(self.player_id)
+                if player:
+                    temp = unit_class(0, 0)
+                    player.titan += temp.cost_titan
+                    player.plasma += temp.cost_plasma
+                    player.current_supply = max(
+                        0, player.current_supply - temp.supply_cost)
 
     def complete_construction(self):
         """Завершить строительство."""

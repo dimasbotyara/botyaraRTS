@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#070a10"/>
+      <stop offset="0.55" stop-color="#0c1320"/>
+      <stop offset="1" stop-color="#122036"/>
+    </linearGradient>
+    <radialGradient id="neb1" cx="0.22" cy="0.3" r="0.55">
+      <stop offset="0" stop-color="#123a66" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#123a66" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neb2" cx="0.8" cy="0.75" r="0.6">
+      <stop offset="0" stop-color="#3a1466" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#3a1466" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00d4ff"/>
+      <stop offset="1" stop-color="#0066ff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#neb1)"/>
+  <rect width="1280" height="400" fill="url(#neb2)"/>
+
+  <!-- звёзды -->
+  <g>
+  <circle cx="818" cy="10" r="1.2" fill="#ffffff" opacity="0.42"/>
+  <circle cx="943" cy="271" r="2.2" fill="#ffe9c4" opacity="0.31"/>
+  <circle cx="41" cy="37" r="1.0" fill="#cfe8ff" opacity="0.60"/>
+  <circle cx="718" cy="286" r="2.2" fill="#ffe9c4" opacity="0.54"/>
+  <circle cx="754" cy="324" r="0.8" fill="#ffffff" opacity="0.78"/>
+  <circle cx="894" cy="136" r="1.0" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="131" cy="152" r="1.2" fill="#a8d4ff" opacity="0.84"/>
+  <circle cx="1033" cy="292" r="2.2" fill="#ffe9c4" opacity="0.34"/>
+  <circle cx="101" cy="117" r="2.2" fill="#a8d4ff" opacity="0.87"/>
+  <circle cx="739" cy="282" r="0.8" fill="#a8d4ff" opacity="0.71"/>
+  <circle cx="1261" cy="342" r="0.8" fill="#ffe9c4" opacity="0.52"/>
+  <circle cx="814" cy="146" r="1.2" fill="#a8d4ff" opacity="0.50"/>
+  <circle cx="898" cy="273" r="0.8" fill="#ffffff" opacity="0.68"/>
+  <circle cx="684" cy="98" r="1.6" fill="#ffffff" opacity="0.52"/>
+  <circle cx="876" cy="337" r="0.8" fill="#cfe8ff" opacity="0.41"/>
+  <circle cx="1030" cy="160" r="0.8" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="272" cy="200" r="1.6" fill="#ffffff" opacity="0.35"/>
+  <circle cx="316" cy="225" r="1.2" fill="#ffe9c4" opacity="0.77"/>
+  <circle cx="1149" cy="160" r="1.0" fill="#ffffff" opacity="0.95"/>
+  <circle cx="652" cy="36" r="0.8" fill="#ffffff" opacity="0.85"/>
+  <circle cx="803" cy="317" r="1.6" fill="#ffe9c4" opacity="0.67"/>
+  <circle cx="488" cy="398" r="2.2" fill="#cfe8ff" opacity="0.43"/>
+  <circle cx="871" cy="46" r="2.2" fill="#a8d4ff" opacity="0.78"/>
+  <circle cx="143" cy="174" r="1.6" fill="#a8d4ff" opacity="0.25"/>
+  <circle cx="1244" cy="305" r="2.2" fill="#a8d4ff" opacity="0.89"/>
+  <circle cx="1077" cy="203" r="1.0" fill="#ffffff" opacity="0.36"/>
+  <circle cx="690" cy="311" r="2.2" fill="#a8d4ff" opacity="0.89"/>
+  <circle cx="625" cy="45" r="1.2" fill="#a8d4ff" opacity="0.87"/>
+  <circle cx="306" cy="96" r="2.2" fill="#cfe8ff" opacity="0.91"/>
+  <circle cx="937" cy="326" r="2.2" fill="#ffffff" opacity="0.79"/>
+  <circle cx="844" cy="379" r="1.0" fill="#ffe9c4" opacity="0.44"/>
+  <circle cx="1234" cy="372" r="1.0" fill="#ffe9c4" opacity="0.75"/>
+  <circle cx="1274" cy="260" r="1.6" fill="#ffe9c4" opacity="0.88"/>
+  <circle cx="155" cy="90" r="1.2" fill="#ffffff" opacity="0.26"/>
+  <circle cx="753" cy="3" r="0.8" fill="#cfe8ff" opacity="0.41"/>
+  <circle cx="1100" cy="28" r="1.0" fill="#ffe9c4" opacity="0.44"/>
+  <circle cx="274" cy="53" r="2.2" fill="#ffffff" opacity="0.65"/>
+  <circle cx="1004" cy="323" r="1.0" fill="#ffe9c4" opacity="0.32"/>
+  <circle cx="454" cy="164" r="0.8" fill="#cfe8ff" opacity="0.72"/>
+  <circle cx="78" cy="291" r="0.8" fill="#ffffff" opacity="0.42"/>
+  <circle cx="686" cy="56" r="1.0" fill="#ffffff" opacity="0.44"/>
+  <circle cx="1119" cy="30" r="2.2" fill="#cfe8ff" opacity="0.32"/>
+  <circle cx="1240" cy="371" r="1.0" fill="#ffe9c4" opacity="0.37"/>
+  <circle cx="616" cy="346" r="0.8" fill="#cfe8ff" opacity="0.37"/>
+  <circle cx="1261" cy="106" r="1.6" fill="#ffe9c4" opacity="0.45"/>
+  <circle cx="198" cy="119" r="0.8" fill="#cfe8ff" opacity="0.66"/>
+  <circle cx="957" cy="23" r="2.2" fill="#ffffff" opacity="0.58"/>
+  <circle cx="73" cy="203" r="1.0" fill="#cfe8ff" opacity="0.30"/>
+  <circle cx="864" cy="94" r="0.8" fill="#ffffff" opacity="0.91"/>
+  <circle cx="741" cy="16" r="0.8" fill="#a8d4ff" opacity="0.54"/>
+  <circle cx="1196" cy="82" r="1.2" fill="#ffe9c4" opacity="0.42"/>
+  <circle cx="168" cy="258" r="1.6" fill="#cfe8ff" opacity="0.47"/>
+  <circle cx="12" cy="248" r="2.2" fill="#cfe8ff" opacity="0.95"/>
+  <circle cx="688" cy="202" r="1.0" fill="#cfe8ff" opacity="0.90"/>
+  <circle cx="1125" cy="148" r="1.0" fill="#a8d4ff" opacity="0.56"/>
+  <circle cx="783" cy="395" r="2.2" fill="#a8d4ff" opacity="0.26"/>
+  <circle cx="1193" cy="41" r="1.0" fill="#cfe8ff" opacity="0.44"/>
+  <circle cx="950" cy="62" r="1.2" fill="#a8d4ff" opacity="0.67"/>
+  <circle cx="261" cy="254" r="1.2" fill="#a8d4ff" opacity="0.60"/>
+  <circle cx="1159" cy="338" r="0.8" fill="#a8d4ff" opacity="0.69"/>
+  <circle cx="56" cy="133" r="1.0" fill="#a8d4ff" opacity="0.70"/>
+  <circle cx="207" cy="177" r="1.6" fill="#cfe8ff" opacity="0.64"/>
+  <circle cx="96" cy="353" r="1.0" fill="#a8d4ff" opacity="0.63"/>
+  <circle cx="746" cy="59" r="1.0" fill="#a8d4ff" opacity="0.28"/>
+  <circle cx="1151" cy="318" r="0.8" fill="#ffffff" opacity="0.88"/>
+  <circle cx="873" cy="267" r="1.2" fill="#ffe9c4" opacity="0.80"/>
+  <circle cx="1247" cy="300" r="1.0" fill="#ffffff" opacity="0.86"/>
+  <circle cx="1128" cy="10" r="1.2" fill="#ffe9c4" opacity="0.80"/>
+  <circle cx="1027" cy="346" r="1.0" fill="#cfe8ff" opacity="0.44"/>
+  <circle cx="490" cy="15" r="1.6" fill="#ffe9c4" opacity="0.41"/>
+  <circle cx="448" cy="328" r="1.0" fill="#ffffff" opacity="0.41"/>
+  <circle cx="510" cy="111" r="0.8" fill="#a8d4ff" opacity="0.93"/>
+  <circle cx="449" cy="204" r="2.2" fill="#cfe8ff" opacity="0.48"/>
+  <circle cx="148" cy="388" r="1.0" fill="#a8d4ff" opacity="0.66"/>
+  <circle cx="49" cy="239" r="1.2" fill="#a8d4ff" opacity="0.76"/>
+  <circle cx="559" cy="394" r="0.8" fill="#ffffff" opacity="0.52"/>
+  <circle cx="326" cy="284" r="0.8" fill="#ffffff" opacity="0.61"/>
+  <circle cx="466" cy="28" r="1.2" fill="#cfe8ff" opacity="0.69"/>
+  <circle cx="921" cy="120" r="1.2" fill="#a8d4ff" opacity="0.72"/>
+  <circle cx="515" cy="118" r="1.0" fill="#ffe9c4" opacity="0.38"/>
+  <circle cx="867" cy="361" r="2.2" fill="#ffe9c4" opacity="0.65"/>
+  <circle cx="701" cy="0" r="1.2" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="595" cy="177" r="1.0" fill="#ffffff" opacity="0.61"/>
+  <circle cx="843" cy="114" r="2.2" fill="#ffffff" opacity="0.48"/>
+  <circle cx="861" cy="90" r="1.0" fill="#cfe8ff" opacity="0.35"/>
+  <circle cx="313" cy="190" r="0.8" fill="#ffffff" opacity="0.57"/>
+  <circle cx="919" cy="154" r="1.6" fill="#cfe8ff" opacity="0.42"/>
+  <circle cx="1143" cy="344" r="0.8" fill="#ffffff" opacity="0.79"/>
+  <circle cx="225" cy="383" r="2.2" fill="#ffffff" opacity="0.58"/>
+  <circle cx="1174" cy="49" r="1.0" fill="#a8d4ff" opacity="0.81"/>
+  </g>
+
+  <!-- сетка-перспектива внизу -->
+  <g stroke="#1d3350" stroke-width="1" opacity="0.5">
+    <line x1="0" y1="400" x2="96" y2="268"/><line x1="160" y1="400" x2="152" y2="268"/><line x1="320" y1="400" x2="208" y2="268"/><line x1="480" y1="400" x2="264" y2="268"/><line x1="640" y1="400" x2="320" y2="268"/><line x1="800" y1="400" x2="376" y2="268"/><line x1="960" y1="400" x2="432" y2="268"/><line x1="1120" y1="400" x2="488" y2="268"/><line x1="1280" y1="400" x2="544" y2="268"/>
+    <line x1="0" y1="304" x2="1280" y2="304"/>
+    <line x1="0" y1="336" x2="1280" y2="336"/>
+    <line x1="0" y1="372" x2="1280" y2="372"/>
+  </g>
+
+  <!-- планета -->
+  <circle cx="1130" cy="86" r="46" fill="#16283f" stroke="#2a4a72" stroke-width="2"/>
+  <ellipse cx="1130" cy="86" rx="64" ry="12" fill="none" stroke="#3a6ea8" stroke-width="2" opacity="0.7" transform="rotate(-14 1130 86)"/>
+
+  
+  <g transform="translate(1055,330) scale(1.35)" >
+    <!-- ноги -->
+    <path d="M -46,-10 L -66,60 L -50,66 L -30,6 Z" fill="#1b2432" stroke="#2e3d54" stroke-width="2"/>
+    <path d="M 46,-10 L 66,60 L 50,66 L 30,6 Z" fill="#1b2432" stroke="#2e3d54" stroke-width="2"/>
+    <path d="M -70,58 L -46,58 L -44,72 L -72,72 Z" fill="#141c28"/>
+    <path d="M 70,58 L 46,58 L 44,72 L 72,72 Z" fill="#141c28"/>
+    <!-- стопы-подсветка -->
+    <rect x="-72" y="70" width="30" height="5" rx="2" fill="#00d4ff" opacity="0.8"/>
+    <rect x="42" y="70" width="30" height="5" rx="2" fill="#00d4ff" opacity="0.8"/>
+    <!-- коленные стыки -->
+    <circle cx="-48" cy="26" r="7" fill="#0e1520" stroke="#00d4ff" stroke-width="2.5"/>
+    <circle cx="48" cy="26" r="7" fill="#0e1520" stroke="#00d4ff" stroke-width="2.5"/>
+    <!-- шея -->
+    <rect x="-16" y="-84" width="32" height="24" fill="#1b2432"/>
+    <!-- корпус -->
+    <path d="M -52,-64 L 52,-64 L 62,-30 L 44,2 L -44,2 L -62,-30 Z"
+          fill="#232f42" stroke="#3a4c68" stroke-width="2.5"/>
+    <path d="M -52,-64 L 0,-64 L 0,2 L -44,2 L -62,-30 Z" fill="#283650"/>
+    <!-- командная полоса -->
+    <path d="M -44,-58 L 44,-58 L 48,-46 L -48,-46 Z" fill="#1e90ff" opacity="0.85"/>
+    <!-- кабина -->
+    <path d="M -20,-108 L 20,-108 L 30,-78 L -30,-78 Z"
+          fill="#182230" stroke="#3a4c68" stroke-width="2.5"/>
+    <!-- визор -->
+    <path d="M -16,-96 L 16,-96 L 20,-86 L -20,-86 Z" fill="#00d4ff">
+      <animate attributeName="opacity" values="1;0.55;1" dur="2.4s" repeatCount="indefinite"/>
+    </path>
+    <!-- плечевые блоки -->
+    <rect x="-84" y="-60" width="26" height="34" rx="4" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="58" y="-60" width="26" height="34" rx="4" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <!-- пушка справа -->
+    <rect x="80" y="-56" width="74" height="12" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="150" y="-59" width="12" height="18" rx="2" fill="#141c28"/>
+    <circle cx="158" cy="-50" r="4" fill="#00d4ff" opacity="0.9">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="1.6s" repeatCount="indefinite"/>
+    </circle>
+    <!-- ракетный блок слева -->
+    <rect x="-92" y="-58" width="20" height="26" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="2"/>
+    <circle cx="-87" cy="-52" r="2.4" fill="#00d4ff"/><circle cx="-79" cy="-52" r="2.4" fill="#00d4ff"/>
+    <circle cx="-87" cy="-44" r="2.4" fill="#00d4ff"/><circle cx="-79" cy="-44" r="2.4" fill="#00d4ff"/>
+    <!-- центральное ядро -->
+    <circle cx="0" cy="-32" r="10" fill="#0e1520" stroke="#00d4ff" stroke-width="3"/>
+    <circle cx="0" cy="-32" r="4.5" fill="#00d4ff">
+      <animate attributeName="r" values="4.5;6;4.5" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <!-- антенна -->
+    <line x1="24" y1="-108" x2="34" y2="-140" stroke="#3a4c68" stroke-width="3"/>
+    <circle cx="35" cy="-142" r="4" fill="#00d4ff">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- заголовок -->
+  <g filter="url(#glow)">
+    <text x="64" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
+          font-size="84" letter-spacing="6" fill="url(#accent)">БОТЯРА RTS</text>
+  </g>
+  <text x="66" y="170" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
+        font-size="84" letter-spacing="6" fill="#eaf6ff" opacity="0.92">БОТЯРА RTS</text>
+
+  <rect x="68" y="196" width="430" height="4" rx="2" fill="url(#accent)"/>
+  <text x="66" y="240" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold"
+        font-size="26" letter-spacing="7" fill="#7fc4e8">СТРАТЕГИЯ В РЕАЛЬНОМ ВРЕМЕНИ</text>
+
+  <!-- фичи -->
+  <g font-family="DejaVu Sans, Arial, sans-serif" font-size="19" fill="#9fb8d0">
+    <text x="68" y="296">▸ Сетевые битвы до 4 командиров</text>
+    <text x="68" y="326">▸ 9 доктрин ИИ · 4 уровня сложности</text>
+    <text x="68" y="356">▸ Туман войны · рогалик-улучшения</text>
+  </g>
+
+  <!-- рамка -->
+  <rect x="4" y="4" width="1272" height="392" rx="14" fill="none" stroke="#1d3350" stroke-width="2"/>
+</svg>

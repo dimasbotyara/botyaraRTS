@@ -1,79 +1,77 @@
-# 🚀 botyaraRTS
+<div align="center">
 
-> **A feature-rich Sci-Fi Real-Time Strategy game built in Python + Pygame.** Fog of war, A* pathfinding, roguelike upgrades, 3 factions' worth of units, and full RU/EN localization — all in pure Python, no engine.
+<img src="assets/branding/banner_en.png" alt="botyaraRTS" width="100%"/>
 
-A modern RTS with the depth of the classics and the polish of a modern indie — built from scratch on Pygame. No Unity, no Godot, no shortcuts. Just 10,000 lines of Python, a spatial hash, and a dream.
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
+![Pygame](https://img.shields.io/badge/pygame-2.6-green)
+![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![RU%2FEN](https://img.shields.io/badge/i18n-RU%2FEN-orange)
+
+**A feature-rich Sci-Fi Real-Time Strategy game built in pure Python + Pygame.**
+Strategy-grade AI opponents, real LAN multiplayer with a lobby, fog of war, roguelike upgrades — no engine, no shortcuts.
+
+</div>
 
 ---
 
 ## ✨ Features
 
+### 🤖 Advanced AI Opponents
+Bots that actually play the game — they build, expand, scout, defend, retreat and surrender:
+
+- **4 difficulty tiers** — Novice, Soldier, Veteran, Nightmare: thinking speed, reaction time, mistakes, income handicap and squad discipline all scale
+- **9 strategic doctrines** the bot commits to every match:
+  `Balanced` · `Early Rush` · `Fortress Defense` · `Air Force` · `Economist` · `Swarm` · `Tech (SuperUnit)` · `Siege Push` · `Sabotage`
+- **Full build orders** per doctrine, dynamic supply control, worker management, base-defense turrets
+- **Army commander**: attack squads with triggers, retargeting, reinforcements, retreats on heavy losses, auto-siege artillery, harass raids on enemy workers
+- **Bot surrender** — when a bot's position becomes hopeless it asks for mercy **once per match**: a panel appears top-center and *you* decide — accept victory or force it to fight to the bitter end (it goes all-in)
+- The AI is fully **deterministic** (fixed sim ticks + seeded RNG), so the same brains fight in networked matches too
+
+### 🌐 Real LAN Multiplayer
+- **Lobby system** — host a game on a port, friends join by IP, pick colors, ready-up, chat
+- **AI fill slots** — up to 4 commanders, any free slot can be a bot
+- **Deterministic lockstep** — shared map seed + tick-stamped command relay; every client simulates the identical world
+- **Desync detection** — periodic state hashes with an on-screen warning
+- **In-game chat & pings**, pause votes, graceful disconnects
+- Host controls match settings right in the lobby (map size, resources, density, AI difficulty)
+
+### 🎛️ Match Setup Screen
+Creating a battle is a real screen now: opponents (1–3 AI), AI difficulty, AI doctrine, map size (S/M/L), starting resources, resource density and map seed. Your last choices are remembered.
+
 ### ⚔️ RTS Core & Tactical Gameplay
-- **Match Countdown** — animated `3... 2... 1... BATTLE START!` overlay kicks off every match
-- **Auto-Worker Economy** — starting workers auto-harvest the nearest Titan ore and Plasma geysers on match start
-- **Contextual Worker Build Menu** — command workers to construct Headquarters, Barracks, Factories, Defense Turrets, and Energy Reactors right from their UI card
+- **Auto-Worker Economy** — starting workers auto-harvest the nearest Titan ore and Plasma geysers
 - **Shift Command Queuing** — chain movement and attack orders by holding `Shift`
-- **Multi-Selection System** — box drag select, `Shift + Click` to add/toggle, double-click to grab every nearby unit of the same type
-- **Stance Control** — toggle each unit between **Aggressive**, **Defensive**, and **Hold Position**
-- **Auto-Repeat RMB (Dota-2 style)** — toggle continuous right-click pathing in settings for effortless micro
+- **Multi-Selection** — box drag, `Shift + Click`, double-click to grab same-type units
+- **Stances** — Aggressive / Defensive / Hold Position
+- **Attack-Move** (`A`), stop (`S`), siege mode (`E`), control groups
+- **Fair procedural maps** — 2–4 mirrored spawn positions, compact symmetric resource patches, paired plasma geysers, guaranteed base cluster, connectivity check
+- **Animated loading screen** — terrain generation streams in chunks with live progress (no more frozen 20%)
 
 ### 🛠️ Roguelike Upgrade System
-Every **3 minutes**, a modal presents **3 random tech cards** to pick from. **30 unique upgrades** across 3 tiers:
+Every **3 minutes** — **3 tech cards** to pick from, **30 upgrades** across 3 tiers, up to 3 active, recycle for Titan.
 
-- 🏭 Industrialization, ⚙️ Titanium Alloy, 🩸 Nanite Vampirism, ☢️ Nuclear Protocol, and 26 more
-- Equip up to **3 active cards** at once
-- **Recycle** unwanted cards for bonus Titan resources
-- Cards stack, synergize, and completely change your strategy mid-match
-
-### 🌫️ Fog of War & Vision
-- Full **vision grid** with explored vs. currently visible tiles
-- Enemy units hidden in the fog
-- Perfect for scout-heavy playstyles
-
-### 🌐 Full Localization & Cross-Platform UI
-- **Dual language support** — complete EN/RU translation for all UI, unit names, building descriptions, settings, and upgrade cards
-- **First-run language selector** with persistent settings
-- **Cross-platform glyph compatibility** — the unicode symbol set is tuned for both Windows and Linux (no more ☐ missing-glyph boxes)
-
-### 🎮 Camera & Controls
-- **WASD / Arrow keys** — smooth camera pan
-- **Mouse Edge Scrolling** — pan by pushing the cursor to the screen edge
-- **Middle-Mouse Drag** — grab-and-pull camera
-- **Mouse Wheel Zoom** — from tactical close-up to strategic overview
-- **Independent sensitivity sliders** for edge scroll, MMB drag, and keyboard speed
-
-### 🗺️ Terrain, Pathfinding & Performance
-- **320×320 tile map** — huge battlespace
-- **A\* pathfinding** with proper unit navigation
-- **Spatial hash** for collision lookups — thousands of entities without an O(n²) death spiral
-- **Interactive minimap** in the bottom-left, click-to-jump and shows fog state
+### 🌫️ Fog of War & 🎨 Rendering
+- Explored vs. visible vision grid; enemies hidden in the fog
+- Procedural sci-fi art: slope-lit terrain, animated water with shore foam, faceted glowing crystals, steaming geysers, damage smoke & fire on wounded units, shield shimmer, team-colored wreckage
+- `rendering/` package with per-category renderers + `RenderManager`
 
 ### 🎯 Tactical UI & Comms
-- **In-game chat** — All / Team / Allies channels
-- **Ping system** — Attention and Retreat pings on the tactical map
-- **Adjustable HUD** — top resource bar, bottom unit control panel, HP-bar toggle (`Left Alt`), grid toggle (`G`)
+- In-game chat (All/Allies), attention/retreat pings, interactive minimap, HP-bar modes, production bars
 
-### 🔫 Combat & Units
-Multiple unit classes across air, land, and support:
-- **Infantry** — Scouts, Troopers, Snipers, Medics
-- **Vehicles** — Battle Tanks, Buggies, Siege Artillery
-- **Aircraft** — Scout Drones, Fighters, Attack Helicopters
-- **Special units** — the exotic stuff
-- Projectiles, delayed explosions, floating damage text, hit sounds per weapon type
+### 🌐 Full Localization
+Complete **EN/RU** translation for everything — including AI doctrines, lobby, match setup and the surrender panel.
 
-### 🎨 Rendering Pipeline
-A dedicated `rendering/` package with per-category renderers:
-- `terrain_renderer`, `unit_renderer`, `vehicle_renderer`, `aircraft_renderer`, `building_renderer`, `projectile_renderer`, `special_renderer`
-- Centralized `render_manager` and `colors` palette
-- All the juice — unit animations, muzzle flashes, explosions, ambient effects
+---
 
-### 🔊 Audio
-- Bundled SFX library: weapons (rifle, sniper, minigun, plasma, laser, rocket, artillery, cannon, flame, AA, turret), UI (click, hover, error, alert, chat, ping, upgrade, select), impacts (metal, shield), explosions (small/medium/large/nuke/mine), economy (harvest, drop, build start/complete), unit ready
-- Victory / defeat music (`music_victory.ogg`, `music_defeat.ogg`)
-- Licensed sources listed in `assets/sounds/LICENSES.md`
+## 🌐 How to Play Online (LAN)
 
-### 🌐 Network Layer (WIP)
-A `network/` module with `client.py`, `server.py`, and `protocol.py` — foundation laid for multiplayer.
+1. One player picks **Multiplayer → Host Game** (default port `5555`)
+2. Host adds **AI slots** or waits for friends; guests pick **Join Game** and enter `host_ip:port`
+3. Everyone readies up → host presses **START** → the match loads synchronously and begins on the same tick
+4. All game commands (move/attack/build/produce/ping/chat) are relayed through the host with tick stamps — if states ever drift apart, a desync warning appears
+
+> Same network or VPN (e.g. Tailscale/Hamachi) works. Port-forward `5555` if hosting across networks.
 
 ---
 
@@ -81,30 +79,20 @@ A `network/` module with `client.py`, `server.py`, and `protocol.py` — foundat
 
 | Action | Control |
 | :--- | :--- |
-| **Move / Attack Target** | `Right Click` |
+| **Move / Attack Target / Rally** | `Right Click` |
 | **Select Unit / Box Drag** | `Left Click` |
-| **Multi-Select Add / Toggle** | `Shift + Left Click` |
-| **Queue Commands** | `Shift + Right Click` |
+| **Multi-Select Add / Queue Commands** | `Shift + Click` |
 | **Attack-Move** | `A + Left Click` |
-| **Stop Current Order** | `S` |
-| **Hold Position** | `H` |
-| **Cycle Unit Stance** | `T` |
+| **Stop / Hold / Stance / Siege** | `S` / `H` / `T` / `E` |
 | **Control Groups** | `Ctrl + 1..9` (assign), `1..9` (select) |
-| **Camera Movement** | `WASD` / Arrows / Edge Scroll / MMB Drag |
-| **Zoom** | Mouse Wheel |
-| **Toggle Grid** | `G` |
-| **Toggle HP Bars** | `Left Alt` |
+| **Ping the map** | `Left Alt + Click` |
+| **Camera** | `WASD` / Arrows / Edge Scroll / MMB Drag / Wheel |
+| **Toggle Grid / HP Bars** | `G` / `Left Alt` |
 | **Pause** | `ESC` |
 
 ---
 
 ## 📦 Installation & Running
-
-### Requirements
-- **Python 3.9+**
-- **Pygame 2.1+**
-
-### Quick Start
 
 ```bash
 git clone https://github.com/dimasbotyara/botyaraRTS.git
@@ -114,9 +102,22 @@ python -m venv .venv
 source .venv/bin/activate     # Linux/macOS
 # .venv\Scripts\activate      # Windows
 
-pip install pygame
+pip install -r requirements.txt
 python main.py
 ```
+
+---
+
+## 🧪 Running Tests
+
+The project ships a pytest suite (55 tests, headless):
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/
+```
+
+Covered: map generation (determinism, symmetry, connectivity), network protocol codecs, command application, economy & refunds, pathfinding, AI configs/strategies/surrender, localization parity, and a full headless match-load-and-simulate smoke test.
 
 ---
 
@@ -124,62 +125,40 @@ python main.py
 
 ```
 botyaraRTS/
-├── main.py                 # Entry point & display init
-├── settings.py             # Constants, colors, keybindings, JSON settings
+├── main.py                 # Entry point, display init, window icon
+├── settings.py             # Constants, match presets, JSON settings
 ├── localization.py         # EN/RU translation dictionary
 │
+├── ai/                     # Strategy-driven AI opponents
+│   ├── brain.py            # Orchestrator (one per AI player)
+│   ├── config.py           # Difficulty profiles
+│   ├── strategies.py       # 9 doctrines with build orders
+│   ├── macro.py            # Economy, build order, placement search
+│   ├── commander.py        # Squads, attacks, defense, harass
+│   └── surrender.py        # Hopelessness evaluator
+│
 ├── core/                   # Engine-level systems
-│   ├── game.py             # Main loop, state machine, countdown, menus
-│   ├── camera.py           # Viewport, zoom, pan, inertia, edge scroll
-│   ├── tilemap.py          # 320×320 terrain grid
-│   ├── pathfinding.py      # A* navigation
-│   ├── fog_of_war.py       # Vision & exploration mask
-│   ├── minimap.py          # Interactive minimap
-│   └── spatial_hash.py     # Entity lookup acceleration
+│   ├── game.py             # States, incremental loading, lockstep sim
+│   ├── camera.py / tilemap.py / pathfinding.py
+│   ├── fog_of_war.py / minimap.py / spatial_hash.py
 │
-├── ui/                     # HUD & overlays
-│   ├── hud.py              # Resource bar + unit panel
-│   ├── upgrade_picker.py   # Roguelike card modal
-│   ├── chat.py             # In-game chat
-│   └── ping_system.py      # Tactical pings
+├── network/                # LAN multiplayer
+│   ├── protocol.py         # Packet codec + command factories
+│   ├── server.py           # Lobby phase + relay phase
+│   ├── client.py           # Connection + receive thread
+│   ├── session.py          # Host/Remote session abstraction
+│   └── commands.py         # Command apply/route + state hash
 │
-├── entities/               # Game objects
-│   ├── entity.py / unit.py # Base classes
-│   ├── worker.py           # Mining & building
-│   ├── building.py         # Production queues
-│   ├── infantry.py         # Scouts, Troopers, Snipers, Medics
-│   ├── vehicles.py         # Tanks, Buggies, Artillery
-│   ├── aircraft.py         # Drones, Fighters, Choppers
-│   └── special_units.py    # Exotic units
-│
-├── systems/                # Game logic
-│   ├── selection.py        # Box drag, shift multi-select
-│   ├── commands.py         # Build mode & placement
-│   ├── economy.py          # Titan / Plasma / Supply
-│   ├── combat.py           # Projectiles & damage
-│   ├── stances.py          # Aggressive / Defensive / Hold
-│   └── upgrades.py         # 30 tech cards
-│
-├── rendering/              # Drawing pipeline
-│   ├── render_manager.py   # Central renderer
-│   ├── *_renderer.py       # Terrain / units / vehicles / air / buildings / projectiles / specials
-│   ├── colors.py
-│   └── utils.py
-│
-├── network/                # Multiplayer (foundation)
-│   ├── server.py
-│   ├── client.py
-│   └── protocol.py
-│
+├── entities/               # Units & buildings (infantry/vehicles/aircraft/specials)
+├── systems/                # Selection, commands, economy, combat, upgrades
+├── rendering/              # Procedural renderers + detail FX
+├── ui/                     # HUD, widgets, chat, pings, upgrade picker
+├── tests/                  # pytest suite (headless)
 ├── assets/
+│   ├── branding/           # Banners & icon (SVG + PNG)
 │   ├── fonts/              # Roboto
-│   └── sounds/             # Full SFX + victory/defeat music
-│
-├── data/settings.json      # Persisted user config
-├── BUILDINGS_EN.md         # Building reference (EN)
-├── BUILDINGS_RU.md         # Building reference (RU)
-├── screenshots/            # (add your own!)
-└── LICENSE
+│   └── sounds/             # SFX + victory/defeat music
+└── data/settings.json      # Persisted user config
 ```
 
 ---
@@ -189,61 +168,34 @@ botyaraRTS/
 | Layer | Technology |
 |---|---|
 | **Language** | Python 3.9+ |
-| **Engine** | Pygame 2.1+ |
-| **Pathfinding** | Custom A* |
-| **Vision** | Custom fog-of-war grid |
-| **Perf** | Spatial hashing |
-| **Localization** | Built-in dict (EN/RU) |
-| **UI** | Hand-rolled Pygame widgets |
+| **Engine** | Pygame 2.6 |
+| **Multiplayer** | Deterministic lockstep over TCP (custom protocol) |
+| **AI** | Utility/plan hybrid, deterministic on sim ticks |
+| **Pathfinding** | Custom A* with ramp/height rules |
+| **Perf** | Spatial hashing, chunked pre-generation |
+| **Tests** | pytest, headless (SDL dummy driver) |
 
-Zero external Python dependencies beyond `pygame`. No numpy, no PIL, no engine — pure Python.
+Zero external runtime dependencies beyond `pygame`.
 
 ---
 
 ## 🔧 Customization
 
-### Adding a new upgrade card
-Edit `systems/upgrades.py` — the upgrade database is a plain list of dicts, so you can add Industrialization-tier cards in a few lines.
-
-### Adding a new unit type
-Subclass `entities/unit.py` (or `infantry`/`vehicles`/`aircraft`) with its stats and draw logic, then register a renderer in `rendering/`.
-
-### Tweaking balance
-All global tuning lives in `settings.py` — unit costs, build times, damage values, camera speeds, keybindings.
-
-### Adding a new language
-Add a new dict to `localization.py` and hook it into the first-run language selector.
-
----
-
-## 🐛 Troubleshooting
-
-**Missing glyph boxes (☐) for unicode icons**
-- Install a broad unicode font on your system (e.g., `ttf-dejavu`, `noto-fonts` on Arch). The game's own glyph set is tuned for cross-platform rendering, but very minimal Linux installs can still miss some symbols.
-
-**Low FPS with huge armies**
-- Lower the map fog resolution or disable HP bars (`Left Alt`).
-- The spatial hash helps a lot, but 1000+ simultaneously visible units is still Pygame's territory, not yours.
-
-**No sound**
-- Check `assets/sounds/` is intact — the game expects the bundled SFX.
-- Audio license info lives in `assets/sounds/LICENSES.md`.
-
-**Text looks blurry on HiDPI**
-- Launch with `SDL_VIDEO_X11_SCALING=1 python main.py` (X11), or adjust font rendering in `ui/font_utils.py`.
+- **New AI doctrine** — add an entry to `ai/strategies.py` (build order + army composition) and one localization key pair
+- **New difficulty** — add a profile to `ai/config.py`
+- **New upgrade card / unit / building** — `systems/upgrades.py` / `entities/` + register a renderer
+- **Balance & presets** — `settings.py` (`MATCH_SIZES`, `MATCH_START_RESOURCES`, `MATCH_DENSITY`)
 
 ---
 
 ## 🚧 Roadmap
 
-- ✅ Roguelike upgrade system (done!)
-- ✅ Fog of war
-- ✅ A* pathfinding
-- ✅ 30 tech cards
-- 🚧 Multiplayer (foundation laid in `network/`)
+- ✅ Strategy AI with difficulties, doctrines and surrender
+- ✅ Real LAN multiplayer with lobby and lockstep
+- ✅ Match setup screen
+- ⬜ Replays (determinism already there!)
 - ⬜ Campaign mode
-- ⬜ AI opponents with strategy tiers
-- ⬜ Replays
+- ⬜ Ranked ladders / ELO
 
 ---
 
@@ -263,9 +215,7 @@ MIT — see [LICENSE](LICENSE) for details.
 
 **dimasbotyara** — [@dimasbotyara](https://github.com/dimasbotyara)
 
-Made with 🚀, ☕, and ~10,000 lines of `pygame.draw.*`.
-
----
+Made with 🚀, ☕, and a lot of `pygame.draw.*`.
 
 <div align="center">
 

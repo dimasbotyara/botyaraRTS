@@ -147,7 +147,7 @@ def apply_command(gs, cmd):
         idx = _entity_index(gs)
         building = idx.get(cmd.get('building_id'))
         if building is not None and building.player_id == player_id:
-            building.cancel_production(cmd.get('index'))
+            building.cancel_production(cmd.get('index'), game_state=gs)
 
     elif kind == 'upgrade_pick':
         if player_id == gs.local_player_id and gs.upgrade_system.is_choosing:

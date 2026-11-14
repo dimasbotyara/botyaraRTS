@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1320"/>
+      <stop offset="1" stop-color="#13233c"/>
+    </linearGradient>
+    <linearGradient id="ac" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00e5ff"/>
+      <stop offset="1" stop-color="#0077ff"/>
+    </linearGradient>
+    <filter id="g" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="96" cy="92" r="4" fill="#cfe8ff" opacity="0.9"/>
+  <circle cx="420" cy="70" r="3" fill="#ffffff" opacity="0.7"/>
+  <circle cx="440" cy="180" r="5" fill="#a8d4ff" opacity="0.8"/>
+  <circle cx="70" cy="240" r="3" fill="#ffffff" opacity="0.6"/>
+  <circle cx="392" cy="330" r="3.5" fill="#cfe8ff" opacity="0.7"/>
+
+  <!-- башня меха: купол + ствол -->
+  <g filter="url(#g)">
+    <path d="M 136,300 L 376,300 L 340,180 Q 256,120 172,180 Z"
+          fill="#26344a" stroke="#3f567a" stroke-width="10"/>
+  </g>
+  <path d="M 200,236 Q 256,196 312,236 L 300,268 L 212,268 Z" fill="#141d2c"/>
+  <rect x="196" y="222" width="120" height="26" rx="8" fill="url(#ac)">
+    <animate attributeName="opacity" values="1;0.6;1" dur="2.2s" repeatCount="indefinite"/>
+  </rect>
+  <!-- ствол -->
+  <rect x="360" y="220" width="120" height="34" rx="8" fill="#1c2838" stroke="#3f567a" stroke-width="8"/>
+  <rect x="466" y="212" width="22" height="50" rx="6" fill="#141d2c"/>
+  <!-- командная полоса -->
+  <path d="M 152,296 L 360,296 L 352,322 L 160,322 Z" fill="#1e90ff" opacity="0.9"/>
+  <!-- корпус низ -->
+  <path d="M 168,330 L 344,330 L 322,402 L 190,402 Z" fill="#1c2838" stroke="#3f567a" stroke-width="8"/>
+  <circle cx="256" cy="366" r="20" fill="#0e1520" stroke="url(#ac)" stroke-width="7">
+    <animate attributeName="r" values="20;23;20" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- гусеницы/опора -->
+  <rect x="150" y="398" width="212" height="34" rx="14" fill="#141d2c" stroke="#2c3d58" stroke-width="6"/>
+  <g fill="#2c3d58">
+    <circle cx="182" cy="415" r="9"/><circle cx="222" cy="415" r="9"/>
+    <circle cx="262" cy="415" r="9"/><circle cx="302" cy="415" r="9"/>
+    <circle cx="336" cy="415" r="9"/>
+  </g>
+  <rect x="4" y="4" width="504" height="504" rx="92" fill="none" stroke="#1d3350" stroke-width="6"/>
+</svg>

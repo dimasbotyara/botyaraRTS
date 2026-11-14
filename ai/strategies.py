@@ -98,7 +98,7 @@ STRATEGIES = {
         'worker_target': 20,
         'build_order': [SupplyDepot, Refinery, Refinery, Barracks, SupplyDepot,
                         Turret, Factory, SupplyDepot, Starport, Factory,
-                        MechWalker, Turret],
+                        SupplyDepot, Turret],
         'building_limits': {Refinery: 2, Barracks: 2, Factory: 3, Starport: 1,
                             Turret: 3, SupplyDepot: 9},
         'army_composition': [(Trooper, 2), (Tank, 3), (MechWalker, 2),

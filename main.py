@@ -20,6 +20,18 @@ def get_display_info():
     return info.current_w, info.current_h
 
 
+def set_window_icon():
+    """Иконка окна из assets/branding/icon.png."""
+    try:
+        icon_path = os.path.join(ASSETS_DIR, 'branding', 'icon_512.png')
+        if os.path.exists(icon_path):
+            icon = pygame.image.load(icon_path)
+            pygame.display.set_icon(
+                pygame.transform.smoothscale(icon, (32, 32)))
+    except Exception:
+        pass  # Иконка — не критична
+
+
 def main():
     pygame.init()
     pygame.mixer.init()
@@ -38,6 +50,7 @@ def main():
         screen = pygame.display.set_mode((screen_w, screen_h), pygame.RESIZABLE)
 
     pygame.display.set_caption(GAME_TITLE)
+    set_window_icon()
 
     # Создаём и запускаем игру
     game = Game(screen, screen_w, screen_h)

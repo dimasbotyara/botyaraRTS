@@ -191,6 +191,69 @@ class GameState:
         self.combat.add_delayed_effect(delay, x, y, radius, damage, damage_type, owner_id)
 
 
+def spawn_starting_units(gs, player_id):
+    """Выдать игроку стартовую базу: HQ, склад и 6 рабочих с добычей."""
+    spawn_idx = player_id % len(gs.tilemap.spawn_points)
+    sx, sy = gs.tilemap.spawn_points[spawn_idx]
+    wx, wy = gs.tilemap.tile_to_world(sx, sy)
+
+    hq = Headquarters(wx, wy, player_id)
+    hq.is_completed = True
+    hq.construction_progress = hq.build_time
+    gs.add_entity(hq)
+
+    depot = SupplyDepot(wx + TILE_SIZE * 4, wy + TILE_SIZE * 2, player_id)
+    depot.is_completed = True
+    depot.construction_progress = depot.build_time
+    gs.add_entity(depot)
+
+    # Поиск ближайших ресурсов для авто-добычи
+    from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
+    titan_tiles = []
+    plasma_tiles = []
+
+    for ty in range(max(0, sy - 25), min(gs.tilemap.height, sy + 25)):
+        for tx in range(max(0, sx - 25), min(gs.tilemap.width, sx + 25)):
+            t = gs.tilemap.get_tile(tx, ty)
+            if t == TILE_TITAN_ORE:
+                dist = (tx - sx) ** 2 + (ty - sy) ** 2
+                titan_tiles.append((dist, tx, ty))
+            elif t == TILE_PLASMA_GEYSER:
+                dist = (tx - sx) ** 2 + (ty - sy) ** 2
+                plasma_tiles.append((dist, tx, ty))
+
+    titan_tiles.sort()
+    plasma_tiles.sort()
+
+    # Авто-установка Rally Point HQ на ближайший титан
+    if titan_tiles:
+        hq.set_rally_point(titan_tiles[0][1] * TILE_SIZE + 16,
+                           titan_tiles[0][2] * TILE_SIZE + 16)
+
+    # Спавним 6 рабочих
+    workers = []
+    for i in range(6):
+        angle = (i / 6) * math.pi * 2
+        ux = wx + math.cos(angle) * TILE_SIZE * 3
+        uy = wy + math.sin(angle) * TILE_SIZE * 3
+        worker = Worker(ux, uy, player_id)
+        gs.add_entity(worker)
+        workers.append(worker)
+
+    # Авто-назначение на добычу: 1 рабочий на плазму, остальные 5 на титан
+    if plasma_tiles and len(workers) > 0:
+        workers[0].command_harvest(plasma_tiles[0][1], plasma_tiles[0][2])
+
+    if titan_tiles:
+        for idx, w in enumerate(workers[1:]):
+            tile_info = titan_tiles[idx % len(titan_tiles)]
+            w.command_harvest(tile_info[1], tile_info[2])
+
+    gs.players[player_id].recalculate_supply(gs.buildings)
+    gs.players[player_id].recalculate_current_supply(gs.units)
+    return hq
+
+
 class Game:
     """Главный класс игры."""
 
@@ -714,6 +777,7 @@ class Game:
         self._surrender_used = False
         self._surrender_pending_pid = None
         self._bot_surrendered = False
+        self._game_over_music_played = False
         # Сброс локстепа
         self._sim_accumulator = 0.0
         self._sim_tick_counter = 0
@@ -795,6 +859,8 @@ class Game:
             return
         from network.session import HostSession
         self.net_session = HostSession(self.server)
+        # Начальное состояние лобби для хоста (хук уже подключён)
+        self.server._broadcast_lobby()
         self._lobby_status = ''
         self.state = STATE_LOBBY
 
@@ -1085,7 +1151,7 @@ class Game:
                     self.server.remove_player(pid)
                 return
 
-        for rect, fn in self._lobby_actions.items():
+        for rect, fn in self._lobby_actions:
             if rect.collidepoint(pos):
                 fn()
                 return
@@ -1096,7 +1162,7 @@ class Game:
         mouse_pos = pygame.mouse.get_pos()
         cx = self.screen_w // 2
         self._lobby_buttons = {}
-        self._lobby_actions = {}
+        self._lobby_actions = []
 
         title = self.menu_font_large.render(t('lobby.title'), True, (0, 200, 255))
         self.screen.blit(title, (cx - title.get_width() // 2, 28))
@@ -1106,7 +1172,7 @@ class Game:
                       kind='danger', border_radius=6,
                       callback=self._leave_lobby)
         back.draw(self.screen, mouse_pos)
-        self._lobby_actions[back_rect] = self._leave_lobby
+        self._lobby_actions.append((back_rect, self._leave_lobby))
 
         if self._lobby_status:
             st = self.menu_font_medium.render(self._lobby_status, True,
@@ -1214,7 +1280,7 @@ class Game:
                          kind='neutral' if can_add else 'neutral')
             add.draw(self.screen, mouse_pos, enabled=can_add)
             if can_add:
-                self._lobby_actions[add_rect] = lambda: self.server.add_ai_slot()
+                self._lobby_actions.append((add_rect, lambda: self.server.add_ai_slot()))
 
             start_rect = pygame.Rect(cx - 120, btn_y, 240, 48)
             can_start = all_ready and len(players) >= 2
@@ -1222,7 +1288,7 @@ class Game:
                            kind='accent')
             start.draw(self.screen, mouse_pos, enabled=can_start)
             if can_start:
-                self._lobby_actions[start_rect] = lambda: self.server.try_start_game(host_id)
+                self._lobby_actions.append((start_rect, lambda: self.server.try_start_game(host_id)))
         else:
             ready_rect = pygame.Rect(cx - 120, btn_y, 240, 48)
             ready = Button(ready_rect,
@@ -1230,7 +1296,7 @@ class Game:
                            else t('lobby.iam_not_ready'),
                            self.menu_font_medium, kind='success')
             ready.draw(self.screen, mouse_pos, selected=self._mp_ready)
-            self._lobby_actions[ready_rect] = self._toggle_ready
+            self._lobby_actions.append((ready_rect, self._toggle_ready))
 
         # Порт хоста — подсказка
         if is_host and self.server:
@@ -1408,64 +1474,7 @@ class Game:
         self.running = False
 
     def _spawn_starting_units(self, player_id):
-        gs = self.game_state
-        spawn_idx = player_id % len(gs.tilemap.spawn_points)
-        sx, sy = gs.tilemap.spawn_points[spawn_idx]
-        wx, wy = gs.tilemap.tile_to_world(sx, sy)
-
-        hq = Headquarters(wx, wy, player_id)
-        hq.is_completed = True
-        hq.construction_progress = hq.build_time
-        gs.add_entity(hq)
-
-        depot = SupplyDepot(wx + TILE_SIZE * 4, wy + TILE_SIZE * 2, player_id)
-        depot.is_completed = True
-        depot.construction_progress = depot.build_time
-        gs.add_entity(depot)
-
-        # Поиск ближайших ресурсов для авто-добычи
-        from core.tilemap import TILE_TITAN_ORE, TILE_PLASMA_GEYSER
-        titan_tiles = []
-        plasma_tiles = []
-
-        for ty in range(max(0, sy - 25), min(gs.tilemap.height, sy + 25)):
-            for tx in range(max(0, sx - 25), min(gs.tilemap.width, sx + 25)):
-                t = gs.tilemap.get_tile(tx, ty)
-                if t == TILE_TITAN_ORE:
-                    dist = (tx - sx) ** 2 + (ty - sy) ** 2
-                    titan_tiles.append((dist, tx, ty))
-                elif t == TILE_PLASMA_GEYSER:
-                    dist = (tx - sx) ** 2 + (ty - sy) ** 2
-                    plasma_tiles.append((dist, tx, ty))
-
-        titan_tiles.sort()
-        plasma_tiles.sort()
-
-        # Авто-установка Rally Point HQ на ближайший титан
-        if titan_tiles:
-            hq.set_rally_point(titan_tiles[0][1] * TILE_SIZE + 16, titan_tiles[0][2] * TILE_SIZE + 16)
-
-        # Спавним 6 рабочих
-        workers = []
-        for i in range(6):
-            angle = (i / 6) * math.pi * 2
-            ux = wx + math.cos(angle) * TILE_SIZE * 3
-            uy = wy + math.sin(angle) * TILE_SIZE * 3
-            worker = Worker(ux, uy, player_id)
-            gs.add_entity(worker)
-            workers.append(worker)
-
-        # Авто-назначение на добычу: 1 рабочий на плазму, остальные 5 на титан
-        if plasma_tiles and len(workers) > 0:
-            workers[0].command_harvest(plasma_tiles[0][1], plasma_tiles[0][2])
-
-        if titan_tiles:
-            for idx, w in enumerate(workers[1:]):
-                tile_info = titan_tiles[idx % len(titan_tiles)]
-                w.command_harvest(tile_info[1], tile_info[2])
-
-        gs.players[player_id].recalculate_supply(gs.buildings)
-        gs.players[player_id].recalculate_current_supply(gs.units)
+        spawn_starting_units(self.game_state, player_id)
 
     # ========================================
     # GAMEPLAY UPDATE
@@ -1747,6 +1756,7 @@ class Game:
             # Игрок принял капитуляцию — немедленная победа
             self.state = STATE_GAME_OVER
             self._game_over_result = 'victory'
+            self._play_game_over_music('victory')
             return True
 
         if rects['decline'].collidepoint(pos):
@@ -1812,10 +1822,33 @@ class Game:
                 if pid == gs.local_player_id:
                     self.state = STATE_GAME_OVER
                     self._game_over_result = 'defeat'
+                    self._play_game_over_music('defeat')
                 elif all(p.is_defeated for p_id, p in gs.players.items()
                          if p_id != gs.local_player_id):
                     self.state = STATE_GAME_OVER
                     self._game_over_result = 'victory'
+                    self._play_game_over_music('victory')
+
+    def _play_game_over_music(self, result):
+        """Проиграть музыку победы/поражения (один раз на матч)."""
+        if getattr(self, '_game_over_music_played', False):
+            return
+        self._game_over_music_played = True
+        try:
+            import os
+            name = 'music_victory.ogg' if result == 'victory' else 'music_defeat.ogg'
+            path = os.path.join(ASSETS_DIR, 'sounds', name)
+            if not os.path.exists(path):
+                path = path.replace('.ogg', '.wav')
+            if os.path.exists(path) and pygame.mixer.get_init():
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(path)
+                vol = float(game_settings.get('music_volume') or 0.5) * \
+                    float(game_settings.get('master_volume') or 0.8)
+                pygame.mixer.music.set_volume(max(0.0, min(1.0, vol)))
+                pygame.mixer.music.play(0)
+        except Exception:
+            pass
 
     # ========================================
     # INPUT
