@@ -368,7 +368,10 @@ class HUD:
                     command_system.enter_build_mode(btn['building_class'])
                     return True
                 elif 'unit_class' in btn and 'building' in btn:
-                    btn['building'].queue_unit(btn['unit_class'], game_state)
+                    game_state.issue_command({
+                        'cmd': 'produce', 'building_id': btn['building'].id,
+                        'unit': btn['unit_class'].__name__,
+                    })
                     return True
 
         return False

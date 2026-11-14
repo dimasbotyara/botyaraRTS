@@ -112,11 +112,14 @@ class Unit(Entity):
             dy = self.y - neighbor.y
             dist_sq = dx * dx + dy * dy
             
-            # Если ровно в одной точке - случайно сдвигаем
+            # Если ровно в одной точке - детерминированно сдвигаем
             if dist_sq == 0:
-                import random
-                dx = random.uniform(-1, 1)
-                dy = random.uniform(-1, 1)
+                _rng = getattr(game_state, 'rng', None)
+                if _rng:
+                    dx = _rng.uniform(-1, 1)
+                    dy = _rng.uniform(-1, 1)
+                else:
+                    dx, dy = 0.7, -0.7
                 dist_sq = dx * dx + dy * dy
 
             if dist_sq < (radius * 2) ** 2:
@@ -264,7 +267,7 @@ class Unit(Entity):
         target_height = game_state.tilemap.get_height(*target.get_tile_pos())
         if target_height > my_height and not self.is_flying:
             # Стреляем вверх — шанс промаха 25%
-            if random.random() < 0.25:
+            if game_state.rng.random() < 0.25:
                 # Создаём эффект "MISS"
                 if hasattr(game_state, 'add_floating_text'):
                     game_state.add_floating_text(target.x, target.y - 20, "MISS", (200, 200, 200))
@@ -314,7 +317,7 @@ class Unit(Entity):
         # Проверяем настройки авто-атаки
         try:
             from settings import game_settings
-            auto_mode = game_settings.get('auto_attack_mode', 'all')
+            auto_mode = game_settings.get('auto_attack_mode')
         except Exception:
             auto_mode = 'all'
 

@@ -147,7 +147,9 @@ class Fighter(AircraftUnit):
 
     def take_damage(self, damage, damage_type='normal', attacker=None):
         """Пассивка: 20% уклонение от ракет."""
-        if damage_type == 'explosive' and random.random() < self.evasion_chance:
+        _gs = getattr(self, '_last_game_state', None)
+        _rng = getattr(_gs, 'rng', None) if _gs else None
+        if _rng and damage_type == 'explosive' and _rng.random() < self.evasion_chance:
             return 0  # Увернулся!
         return super().take_damage(damage, damage_type, attacker)
 

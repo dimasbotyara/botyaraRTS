@@ -132,16 +132,16 @@ class CommandSystem:
         self.build_valid = tilemap.is_buildable(tile_x, tile_y, temp.size_tiles)
 
     def try_place_building(self, game_state, player_id):
-        """Попытаться поставить здание."""
+        """Попытаться поставить здание (через команду — работает и по сети)."""
         if not self.build_mode or not self.build_preview_pos or not self.build_valid:
             return False
 
         tx, ty = self.build_preview_pos
 
-        building = place_building_at(game_state, player_id,
-                                     self.build_class, tx, ty)
-        if building is None:
-            return False
+        game_state.issue_command({
+            'cmd': 'build', 'building': self.build_class.__name__,
+            'tx': tx, 'ty': ty,
+        })
 
         # Не выходим из режима строительства если зажат Shift
         keys = pygame.key.get_pressed()

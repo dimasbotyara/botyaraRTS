@@ -203,7 +203,9 @@ class UpgradePicker:
             for i, rect in enumerate(self.card_rects):
                 if rect.collidepoint(pos):
                     if len(player.active_upgrades) < UPGRADE_SLOTS:
-                        upgrade_system.select_upgrade(i, game_state)
+                        game_state.issue_command({
+                            'cmd': 'upgrade_pick', 'index': i,
+                        })
                     else:
                         # Нужно заменить — переходим в режим замены
                         self.replacing = True
@@ -212,15 +214,16 @@ class UpgradePicker:
 
             # Кнопка "Пропустить"
             if self.skip_rect.collidepoint(pos):
-                upgrade_system.skip_upgrade(game_state)
+                game_state.issue_command({'cmd': 'upgrade_skip'})
                 return True
         else:
             # Режим замены — клик по слоту
             for i, rect in enumerate(self.slot_rects):
                 if rect.collidepoint(pos):
-                    upgrade_system.select_upgrade(
-                        self.replace_card_index, game_state, replace_index=i
-                    )
+                    game_state.issue_command({
+                        'cmd': 'upgrade_pick', 'index': self.replace_card_index,
+                        'replace_index': i,
+                    })
                     self.replacing = False
                     return True
 

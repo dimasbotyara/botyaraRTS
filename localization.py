@@ -106,6 +106,43 @@ TRANSLATIONS = {
     'ai.strat.harass': {'en': 'Saboteur', 'ru': 'Диверсии'},
 
     # ============================
+    # МУЛЬТИПЛЕЕР И ЛОББИ
+    # ============================
+    'mp.title': {'en': '🌐  Multiplayer', 'ru': '🌐  Мультиплеер'},
+    'mp.name': {'en': 'Your name', 'ru': 'Ваше имя'},
+    'mp.color': {'en': 'Color', 'ru': 'Цвет'},
+    'mp.address': {'en': "Host address (IP:port)", 'ru': 'Адрес хоста (IP:порт)'},
+    'mp.hint': {'en': 'Same port as the host · default 5555',
+                'ru': 'Тот же порт, что у хоста · по умолчанию 5555'},
+    'mp.host': {'en': '▲  Host Game', 'ru': '▲  Создать игру'},
+    'mp.join': {'en': '⇢  Join Game', 'ru': '⇢  Подключиться'},
+    'mp.conn_failed': {'en': 'Connection failed — check IP/port',
+                       'ru': 'Не удалось подключиться — проверьте IP/порт'},
+    'mp.connecting': {'en': 'Connecting...', 'ru': 'Подключение...'},
+    'mp.reject_full': {'en': 'Lobby is full or match already started',
+                       'ru': 'Лобби заполнено или матч уже начался'},
+    'mp.reject': {'en': 'Connection rejected', 'ru': 'Подключение отклонено'},
+    'mp.conn_lost': {'en': 'Connection lost', 'ru': 'Соединение потеряно'},
+    'mp.peer_left': {'en': '{name} has left the match',
+                     'ru': '{name} покинул матч'},
+    'mp.paused_by': {'en': 'paused the game', 'ru': 'приостановил игру'},
+    'mp.desync': {'en': '⚠ Desync detected — states differ between players',
+                  'ru': '⚠ Рассинхрон — состояние игроков различается'},
+    'lobby.title': {'en': '⚡  Lobby', 'ru': '⚡  Лобби'},
+    'lobby.players': {'en': 'Players', 'ru': 'Игроки'},
+    'lobby.ready': {'en': 'Ready', 'ru': 'Готов'},
+    'lobby.not_ready': {'en': 'Not ready', 'ru': 'Не готов'},
+    'lobby.leave': {'en': '← Leave', 'ru': '← Выйти'},
+    'lobby.add_ai': {'en': '+ AI slot', 'ru': '+ Слот с ИИ'},
+    'lobby.start': {'en': '▶  START', 'ru': '▶  СТАРТ'},
+    'lobby.iam_ready': {'en': '✔  Ready', 'ru': '✔  Готов'},
+    'lobby.iam_not_ready': {'en': '✖  Not ready', 'ru': '✖  Не готов'},
+    'lobby.host_sets': {'en': 'Only the host can change settings',
+                        'ru': 'Настройки меняет только хост'},
+    'lobby.port_hint': {'en': 'Server on port {port} — tell friends your IP',
+                        'ru': 'Сервер на порту {port} — сообщите друзьям ваш IP'},
+
+    # ============================
     # СДАЧА БОТА
     # ============================
     'surrender.title': {

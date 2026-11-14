@@ -22,12 +22,14 @@ from ui.hud import HUD
 from ui.upgrade_picker import UpgradePicker
 from ui.chat import ChatSystem
 from ui.ping_system import PingSystem
-from ui.widgets import Button, draw_chip_row, draw_spinner
+from ui.widgets import Button, draw_chip_row, draw_spinner, draw_panel
 from entities.building import Headquarters, SupplyDepot
 from entities.worker import Worker
 from rendering.render_manager import RenderManager
 from localization import t, t_unit, t_building, needs_language_selection, set_lang
 from ui.font_utils import SmartFont
+from network.server import GameServer
+from network.protocol import PKT_LOBBY_SET
 
 
 # Состояния игры
@@ -37,6 +39,7 @@ STATE_LOADING = 'loading'
 STATE_PLAYING = 'playing'
 STATE_PAUSED = 'paused'
 STATE_SETTINGS = 'settings'
+STATE_MP_MENU = 'mp_menu'
 STATE_LOBBY = 'lobby'
 STATE_GAME_OVER = 'game_over'
 
@@ -107,6 +110,9 @@ class GameState:
         self.buildings = []
         self.dead_entities = []
 
+        # Сетевая сессия (HostSession/RemoteSession) или None в одиночке
+        self.net_session = None
+
         # ИИ-мозги (наполняются при загрузке матча)
         self.ai_brains = {}
         # Запрос ИИ о сдаче (pid) — обрабатывает Game один раз за матч
@@ -149,6 +155,11 @@ class GameState:
             self.minimap.pregen()
             self.render_manager.terrain.pregen()
             self._pregen_done = True
+
+    def issue_command(self, cmd):
+        """Маршрут игровых команд: локально или через сеть."""
+        from network.commands import issue_command
+        issue_command(self, cmd)
 
     def add_entity(self, entity):
         if entity.is_building:
@@ -220,6 +231,30 @@ class Game:
         # Сеть
         self.network = None
         self.is_host = False
+        self._mp_name = game_settings.get('player_name') or 'Player'
+        self._mp_color = game_settings.get('player_color')
+        self._mp_input_rects = {}
+        self._mp_color_rects = []
+        self._mp_focus = None
+        self._mp_status = ''
+        self._lobby_buttons = {}
+        self._lobby_actions = {}
+        self.server = None            # GameServer (хост)
+        self.net_session = None       # HostSession / RemoteSession
+        self._lobby_state = None      # последний снапшот лобби
+        self._lobby_status = ''       # текст статуса подключения
+        self._mp_join_ip = ''
+        self._mp_ready = False
+        self._sim_accumulator = 0.0
+        self._sim_tick_counter = 0
+        self._net_cmd_buckets = {}     # tick -> [(seq, cmd), ...]
+        self._net_server_tick = 0
+        self._net_last_sync_wall = 0.0
+        self._sync_hash_timer = 0.0
+        self._last_state_hash = ''
+        self._desync_detected = False
+        self._net_paused = False
+        self._mp_disconnect_msg = None
 
     def run(self):
         while self.running:
@@ -234,6 +269,9 @@ class Game:
                 self._render_lang_select()
                 pygame.display.flip()
                 continue
+
+            # Сетевые события обрабатываются в любом состоянии
+            self._poll_network()
 
             if self.state == STATE_MENU:
                 self.menu_time += dt
@@ -257,6 +295,14 @@ class Game:
             elif self.state == STATE_SETTINGS:
                 self._update_settings(events)
                 self._render_settings()
+            elif self.state == STATE_MP_MENU:
+                self.menu_time += dt
+                self._update_mp_menu(events)
+                self._render_mp_menu()
+            elif self.state == STATE_LOBBY:
+                self.menu_time += dt
+                self._update_lobby(events)
+                self._render_lobby()
             elif self.state == STATE_GAME_OVER:
                 self._update_game_over(events)
                 self._render_game_over()
@@ -305,6 +351,13 @@ class Game:
 
         # Анимированный фон — звёздное поле
         self._render_starfield()
+
+        # Сообщение о разрыве сетевого матча
+        if self._mp_disconnect_msg:
+            msg = self.menu_font_medium.render(self._mp_disconnect_msg, True,
+                                               COLOR_UI_WARNING)
+            self.screen.blit(msg, (self.screen_w // 2 - msg.get_width() // 2, 170))
+            self._mp_disconnect_msg = None
 
         # Заголовок с неоновым свечением
         title_text = "botyaraRTS"
@@ -661,14 +714,536 @@ class Game:
         self._surrender_used = False
         self._surrender_pending_pid = None
         self._bot_surrendered = False
+        # Сброс локстепа
+        self._sim_accumulator = 0.0
+        self._sim_tick_counter = 0
+        self._net_cmd_buckets = {}
+        self._net_paused = False
         self._load_gen = self._match_load_iter(cfg)
         self._load_progress = 0.0
         self._load_label = t('loading.quantum_core')
         self.state = STATE_LOADING
 
     def _start_lobby(self):
-        """Временно: запускает одиночный матч (реальная сеть — отдельно)."""
-        self._start_singleplayer()
+        """Открыть сетевое меню (хост/подключение)."""
+        self._open_mp_menu()
+
+    def _start_network_match(self, data):
+        """Запуск сетевого матча по данным PKT_GAME_START."""
+        if self.net_session is None:
+            return
+        players = data.get('players', [])
+        settings = data.get('settings', {})
+        self.net_session.in_game = True
+
+        cfg = {
+            'map_size': settings.get('map_size', 'medium'),
+            'players': max(2, len(players)),
+            'ai_difficulty': settings.get('ai_difficulty', 'standard'),
+            'ai_strategy': settings.get('ai_strategy', 'random'),
+            'start_resources': settings.get('start_resources', 'normal'),
+            'resource_density': settings.get('resource_density', 'normal'),
+            'seed': data.get('seed', 1),
+            'local_player_id': self.net_session.player_id,
+            'ai_slot_ids': [p['id'] for p in players if p.get('is_ai')],
+            'mp_names': {p['id']: p.get('name', f"P{p['id']}") for p in players},
+            'mp': True,
+        }
+        self.total_players = max(1, sum(1 for p in players if not p.get('is_ai')))
+        self._net_paused = False
+        self._desync_detected = False
+        self._start_singleplayer(cfg)
+
+    # ========================================
+    # СЕТЬ: МЕНЮ И ЛОББИ
+    # ========================================
+
+    def _open_mp_menu(self):
+        self._mp_focus = None
+        self._mp_status = ''
+        self.state = STATE_MP_MENU
+
+    def _cleanup_network(self):
+        if self.net_session is not None:
+            try:
+                self.net_session.shutdown()
+            except Exception:
+                pass
+            self.net_session = None
+        if self.server is not None:
+            try:
+                self.server.stop()
+            except Exception:
+                pass
+            self.server = None
+        self._lobby_state = None
+        self._mp_ready = False
+        self._net_paused = False
+        self._desync_detected = False
+
+    def _host_game(self):
+        """Поднять сервер и открыть лобби хоста."""
+        self._cleanup_network()
+        game_settings.set('player_name', self._mp_name or 'Host')
+        cfg = self._default_match_settings()
+        self.server = GameServer(match_settings=cfg)
+        try:
+            self.server.start()
+        except OSError as e:
+            self._mp_status = f"Port error: {e}"
+            self.server = None
+            return
+        from network.session import HostSession
+        self.net_session = HostSession(self.server)
+        self._lobby_status = ''
+        self.state = STATE_LOBBY
+
+    def _join_game(self, ip, port):
+        """Подключиться к лобби."""
+        self._cleanup_network()
+        from network.client import GameClient
+        from network.session import RemoteSession
+        client = GameClient()
+        name = (self._mp_name or game_settings.get('player_name') or 'Player')
+        color = int(self._mp_color)
+        if not client.connect(ip, port, name=name, color_index=color):
+            self._mp_status = t('mp.conn_failed')
+            return
+        self.net_session = RemoteSession(client)
+        self._lobby_status = t('mp.connecting')
+        self.state = STATE_LOBBY
+
+    def _poll_network(self):
+        """Обработка сетевых событий (вызывается каждый кадр)."""
+        if self.net_session is None:
+            return
+        gs = self.game_state
+
+        for kind, data in self.net_session.poll():
+            if kind == 'lobby':
+                self._lobby_state = data
+                self._lobby_status = ''
+
+            elif kind == 'join_ack':
+                self._lobby_state = data.get('lobby')
+                self._lobby_status = ''
+
+            elif kind == 'join_reject':
+                reason = data.get('reason', '')
+                self._mp_status = t('mp.reject_full') if 'full' in reason \
+                    else t('mp.reject')
+                self._cleanup_network()
+                self.state = STATE_MP_MENU
+
+            elif kind == 'game_start':
+                if data.get('action') == 'unpause':
+                    # Все проголосовали за продолжение
+                    self._net_paused = False
+                    self.pause_votes.clear()
+                    if self.state == STATE_PAUSED:
+                        self.state = STATE_PLAYING
+                elif data.get('action') == 'begin':
+                    # Все загрузились — синхронный старт матча
+                    self._net_paused = False
+                    self.match_start_countdown = 1.2
+                    self._sim_accumulator = 0.0
+                    self._net_server_tick = 0
+                    self._net_last_sync_wall = time.monotonic()
+                elif self.state in (STATE_LOBBY, STATE_LOADING, STATE_PLAYING,
+                                    STATE_PAUSED):
+                    self._start_network_match(data)
+
+            elif kind == 'tick':
+                tick = int(data.get('tick', 0))
+                if tick > self._net_server_tick:
+                    self._net_server_tick = tick
+                self._net_last_sync_wall = time.monotonic()
+
+            elif kind == 'cmd':
+                if gs is not None:
+                    tick = int(data.get('tick', self._sim_tick_counter + 1))
+                    self._net_cmd_buckets.setdefault(tick, []).append(
+                        (data.get('seq', 0), data))
+
+            elif kind == 'sync':
+                their = data.get('hash')
+                if their and self._last_state_hash and \
+                        their != self._last_state_hash:
+                    self._desync_detected = True
+
+            elif kind == 'pause':
+                # Кто-то приостановил матч
+                pid = data.get('player_id')
+                if self.state == STATE_PLAYING:
+                    self.state = STATE_PAUSED
+                self._net_paused = True
+                self.pause_votes.clear()
+                name = gs.players[pid].name if gs and gs.players.get(pid) \
+                    else f"Player {pid}"
+                if gs:
+                    gs.chat.add_message({'text': t('mp.paused_by'),
+                                         'sender': name, 'mode': 'all'})
+
+            elif kind == 'unpause':
+                votes = data.get('votes', 0)
+                needed = data.get('needed', 1)
+                self.pause_votes = set(range(votes))
+
+            elif kind in ('disconnect', 'connection_lost'):
+                name = data.get('name', '') if kind == 'disconnect' else ''
+                self._mp_disconnect_msg = (t('mp.peer_left').format(name=name)
+                                           if name else t('mp.conn_lost'))
+                self._cleanup_network()
+                if self.state in (STATE_PLAYING, STATE_PAUSED, STATE_LOADING):
+                    self.state = STATE_MENU
+
+    # ========================================
+    # СЕТЬ: ЭКРАНЫ
+    # ========================================
+
+    def _update_mp_menu(self, events):
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.state = STATE_MENU
+                elif self._mp_focus is not None:
+                    if event.key == pygame.K_BACKSPACE:
+                        if self._mp_focus == 'name':
+                            self._mp_name = self._mp_name[:-1]
+                        else:
+                            self._mp_join_ip = self._mp_join_ip[:-1]
+                    elif event.key == pygame.K_RETURN:
+                        self._mp_focus = None
+                    elif event.unicode and event.unicode.isprintable():
+                        if self._mp_focus == 'name':
+                            self._mp_name = (self._mp_name + event.unicode)[:20]
+                        else:
+                            self._mp_join_ip = (self._mp_join_ip + event.unicode)[:39]
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self._handle_mp_menu_click(event.pos)
+
+    def _handle_mp_menu_click(self, pos):
+        x, y = pos
+        cx = self.screen_w // 2
+
+        back_rect = pygame.Rect(20, 20, 120, 40)
+        if back_rect.collidepoint(pos):
+            self.state = STATE_MENU
+            return
+
+        for key, rect in self._mp_input_rects.items():
+            if rect.collidepoint(pos):
+                self._mp_focus = key
+                return
+        self._mp_focus = None
+
+        # Цвета
+        for idx, rect in enumerate(self._mp_color_rects):
+            if rect.collidepoint(pos):
+                self._mp_color = idx
+                return
+
+        # Host / Join
+        host_rect = pygame.Rect(cx - 260, self.screen_h - 170, 240, 52)
+        join_rect = pygame.Rect(cx + 20, self.screen_h - 170, 240, 52)
+        if host_rect.collidepoint(pos):
+            game_settings.set('player_name', self._mp_name)
+            game_settings.set('player_color', int(self._mp_color))
+            self._host_game()
+            return
+        if join_rect.collidepoint(pos):
+            game_settings.set('player_name', self._mp_name)
+            game_settings.set('player_color', int(self._mp_color))
+            port = game_settings.get('server_port')
+            ip = self._mp_join_ip.strip() or '127.0.0.1'
+            if ':' in ip:
+                ip, _, port_s = ip.partition(':')
+                try:
+                    port = int(port_s)
+                except ValueError:
+                    pass
+            self._join_game(ip, port)
+            return
+
+    def _render_mp_menu(self):
+        self.screen.fill(COLOR_BG)
+        self._render_starfield()
+
+        cx = self.screen_w // 2
+        mouse_pos = pygame.mouse.get_pos()
+        self._mp_input_rects = {}
+        self._mp_color_rects = []
+
+        title = self.menu_font_large.render(t('mp.title'), True, (0, 200, 255))
+        self.screen.blit(title, (cx - title.get_width() // 2, 40))
+
+        back_rect = pygame.Rect(20, 20, 120, 40)
+        back = Button(back_rect, t('settings.back'), self.menu_font_small,
+                      kind='neutral', border_radius=6)
+        back.draw(self.screen, mouse_pos)
+
+        col_w = 460
+        # --- Левая колонка: имя + цвет ---
+        name_label = self.menu_font_small.render(t('mp.name'), True, COLOR_UI_TEXT)
+        self.screen.blit(name_label, (cx - col_w - 40, 150))
+        name_rect = pygame.Rect(cx - col_w - 40, 175, col_w, 40)
+        self._draw_input_box(name_rect, self._mp_name,
+                             self._mp_focus == 'name')
+
+        color_label = self.menu_font_small.render(t('mp.color'), True, COLOR_UI_TEXT)
+        self.screen.blit(color_label, (cx - col_w - 40, 235))
+        crect = pygame.Rect(cx - col_w - 40, 260, 36, 36)
+        for idx in range(8):
+            r = crect.copy()
+            r.x = cx - col_w - 40 + idx * 44
+            self._mp_color_rects.append(r)
+            selected = (idx == int(self._mp_color))
+            pygame.draw.rect(self.screen, PLAYER_COLORS[idx], r,
+                             border_radius=6)
+            pygame.draw.rect(self.screen,
+                             (255, 255, 255) if selected else (60, 80, 100),
+                             r, 3 if selected else 1, border_radius=6)
+
+        # --- Правая колонка: IP ---
+        ip_label = self.menu_font_small.render(t('mp.address'), True, COLOR_UI_TEXT)
+        self.screen.blit(ip_label, (cx + 40, 150))
+        ip_rect = pygame.Rect(cx + 40, 175, col_w, 40)
+        self._draw_input_box(ip_rect, self._mp_join_ip or '127.0.0.1',
+                             self._mp_focus == 'ip')
+        self._mp_input_rects['ip'] = ip_rect
+
+        hint = self.menu_font_small.render(t('mp.hint'), True, COLOR_UI_TEXT_DIM)
+        self.screen.blit(hint, (cx + 40, 222))
+
+        # Кнопки
+        host_rect = pygame.Rect(cx - 260, self.screen_h - 170, 240, 52)
+        join_rect = pygame.Rect(cx + 20, self.screen_h - 170, 240, 52)
+        host = Button(host_rect, t('mp.host'), self.menu_font_medium,
+                      kind='accent', callback=self._host_game)
+        join = Button(join_rect, t('mp.join'), self.menu_font_medium,
+                      kind='success', callback=lambda: self._handle_mp_menu_click(join_rect.center))
+        host.draw(self.screen, mouse_pos)
+        join.draw(self.screen, mouse_pos)
+
+        if self._mp_status:
+            err = self.menu_font_small.render(self._mp_status, True,
+                                              COLOR_UI_DANGER)
+            self.screen.blit(err, (cx - err.get_width() // 2,
+                                   self.screen_h - 100))
+
+        # Имя — рисуем после кнопок, чтобы сфокусированный бокс был сверху
+        self._mp_input_rects['name'] = name_rect
+
+    def _draw_input_box(self, rect, text, focused):
+        pygame.draw.rect(self.screen, (18, 22, 30), rect, border_radius=6)
+        pygame.draw.rect(self.screen,
+                         (0, 180, 255) if focused else (60, 80, 100),
+                         rect, 2, border_radius=6)
+        shown = text + ('│' if focused and int(self.menu_time * 2) % 2 == 0 else '')
+        surf = self.menu_font_small.render(shown or ' ', True, COLOR_UI_TEXT)
+        self.screen.blit(surf, (rect.x + 10, rect.centery - surf.get_height() // 2))
+
+    def _update_lobby(self, events):
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self._leave_lobby()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self._handle_lobby_click(event.pos)
+
+    def _leave_lobby(self):
+        self._cleanup_network()
+        self.state = STATE_MENU
+
+    def _handle_lobby_click(self, pos):
+        if self._lobby_state is None:
+            self._leave_lobby()
+            return
+        my_id = self.net_session.player_id
+        is_host = my_id == self._lobby_state.get('host_id', 0)
+        settings = self._lobby_state.get('settings', {})
+
+        for key, fn in self._lobby_buttons.items():
+            if key.startswith('chip:'):
+                _, chip_key, idx = key.split(':')
+                if not is_host:
+                    continue
+                idx = int(idx)
+                value = {'map_size': ['small', 'medium', 'large'],
+                         'start_resources': ['poor', 'normal', 'rich', 'mad'],
+                         'resource_density': ['sparse', 'normal', 'rich'],
+                         'ai_difficulty': AI_DIFFICULTY_IDS}[chip_key][idx]
+                self.server.set_settings({chip_key: value})
+                return
+            if key.startswith('kick:'):
+                pid = int(key.split(':')[1])
+                if is_host and pid != my_id:
+                    self.server.remove_player(pid)
+                return
+
+        for rect, fn in self._lobby_actions.items():
+            if rect.collidepoint(pos):
+                fn()
+                return
+
+    def _render_lobby(self):
+        self.screen.fill(COLOR_BG)
+        self._render_starfield()
+        mouse_pos = pygame.mouse.get_pos()
+        cx = self.screen_w // 2
+        self._lobby_buttons = {}
+        self._lobby_actions = {}
+
+        title = self.menu_font_large.render(t('lobby.title'), True, (0, 200, 255))
+        self.screen.blit(title, (cx - title.get_width() // 2, 28))
+
+        back_rect = pygame.Rect(20, 20, 120, 40)
+        back = Button(back_rect, t('lobby.leave'), self.menu_font_small,
+                      kind='danger', border_radius=6,
+                      callback=self._leave_lobby)
+        back.draw(self.screen, mouse_pos)
+        self._lobby_actions[back_rect] = self._leave_lobby
+
+        if self._lobby_status:
+            st = self.menu_font_medium.render(self._lobby_status, True,
+                                              COLOR_UI_ACCENT)
+            self.screen.blit(st, (cx - st.get_width() // 2, self.screen_h // 2))
+            return
+
+        if self._lobby_state is None:
+            return
+
+        my_id = self.net_session.player_id if self.net_session else 0
+        host_id = self._lobby_state.get('host_id', 0)
+        is_host = my_id == host_id
+        settings = self._lobby_state.get('settings', {})
+        players = self._lobby_state.get('players', [])
+
+        # === Игроки ===
+        panel_rect = pygame.Rect(cx - 330, 90, 660, 60 + len(players) * 46 + 16)
+        draw_panel(self.screen, panel_rect)
+        hdr = self.menu_font_small.render(t('lobby.players'), True, COLOR_UI_TEXT_DIM)
+        self.screen.blit(hdr, (panel_rect.x + 16, panel_rect.y + 10))
+
+        y = panel_rect.y + 44
+        for p in players:
+            pid = p['id']
+            color_rect = pygame.Rect(panel_rect.x + 16, y + 6, 28, 28)
+            pygame.draw.rect(self.screen, PLAYER_COLORS[p['color'] % 8],
+                             color_rect, border_radius=6)
+            name = p['name']
+            if pid == host_id:
+                name = '♛ ' + name
+            if p['is_ai']:
+                name = '🤖 ' + name
+            if pid == my_id:
+                name += '  ←'
+            ntext = self.menu_font_medium.render(name, True, COLOR_UI_TEXT)
+            self.screen.blit(ntext, (panel_rect.x + 58, y + 6))
+
+            if p['is_ai']:
+                rtxt = self.menu_font_small.render('CPU', True, COLOR_UI_TEXT_DIM)
+                self.screen.blit(rtxt, (panel_rect.right - 110, y + 12))
+            else:
+                ready = p['ready'] or pid == host_id
+                rtxt = self.menu_font_small.render(
+                    '✔ ' + t('lobby.ready') if ready else t('lobby.not_ready'),
+                    True, (60, 255, 120) if ready else COLOR_UI_TEXT_DIM)
+                self.screen.blit(rtxt, (panel_rect.right - 150, y + 12))
+
+            if is_host and pid != my_id:
+                kick_rect = pygame.Rect(panel_rect.right - 52, y + 8, 26, 24)
+                pygame.draw.rect(self.screen, (90, 40, 40), kick_rect,
+                                 border_radius=4)
+                xt = self.menu_font_small.render('✕', True, COLOR_UI_TEXT)
+                self.screen.blit(xt, (kick_rect.centerx - xt.get_width() // 2,
+                                      kick_rect.centery - xt.get_height() // 2))
+                self._lobby_buttons[f'kick:{pid}'] = True
+
+            y += 46
+
+        # === Настройки (хост) ===
+        y += 18
+        settings_rect = pygame.Rect(cx - 330, y, 660, 190)
+        draw_panel(self.screen, settings_rect)
+        sy = settings_rect.y + 12
+
+        def chips(label, chip_key, options, labels, current):
+            nonlocal sy
+            ltext = self.menu_font_small.render(t(label), True, COLOR_UI_TEXT)
+            self.screen.blit(ltext, (settings_rect.x + 16, sy + 4))
+            rects, _ = draw_chip_row(self.screen, self.menu_font_small,
+                                     settings_rect.x + 240, sy,
+                                     labels, current, mouse_pos)
+            for i, r in enumerate(rects):
+                self._lobby_buttons[f'chip:{chip_key}:{i}'] = True
+            sy += 36
+
+        chips('create.map_size', 'map_size', 3,
+              [t('mapsize.' + s) for s in ('small', 'medium', 'large')],
+              ['small', 'medium', 'large'].index(settings.get('map_size', 'medium')))
+        chips('create.start_resources', 'start_resources', 4,
+              [t('res.' + r) for r in ('poor', 'normal', 'rich', 'mad')],
+              ['poor', 'normal', 'rich', 'mad'].index(settings.get('start_resources', 'normal')))
+        chips('create.resource_density', 'resource_density', 3,
+              [t('density.' + d) for d in ('sparse', 'normal', 'rich')],
+              ['sparse', 'normal', 'rich'].index(settings.get('resource_density', 'normal')))
+        chips('create.difficulty', 'ai_difficulty', 4,
+              [t('ai.diff.' + d) for d in AI_DIFFICULTY_IDS],
+              AI_DIFFICULTY_IDS.index(settings.get('ai_difficulty', 'standard'))
+              if settings.get('ai_difficulty') in AI_DIFFICULTY_IDS else 1)
+
+        if not is_host:
+            note = self.menu_font_small.render(t('lobby.host_sets'), True,
+                                               COLOR_UI_TEXT_DIM)
+            self.screen.blit(note, (settings_rect.x + 16, sy + 2))
+
+        # === Кнопки ===
+        btn_y = self.screen_h - 120
+        humans = [p for p in players if not p['is_ai']]
+        all_ready = all(p['ready'] for p in humans if p['id'] != host_id)
+
+        if is_host:
+            add_rect = pygame.Rect(cx - 500, btn_y, 200, 48)
+            can_add = len(players) < 4
+            add = Button(add_rect, t('lobby.add_ai'), self.menu_font_small,
+                         kind='neutral' if can_add else 'neutral')
+            add.draw(self.screen, mouse_pos, enabled=can_add)
+            if can_add:
+                self._lobby_actions[add_rect] = lambda: self.server.add_ai_slot()
+
+            start_rect = pygame.Rect(cx - 120, btn_y, 240, 48)
+            can_start = all_ready and len(players) >= 2
+            start = Button(start_rect, t('lobby.start'), self.menu_font_medium,
+                           kind='accent')
+            start.draw(self.screen, mouse_pos, enabled=can_start)
+            if can_start:
+                self._lobby_actions[start_rect] = lambda: self.server.try_start_game(host_id)
+        else:
+            ready_rect = pygame.Rect(cx - 120, btn_y, 240, 48)
+            ready = Button(ready_rect,
+                           t('lobby.iam_ready') if self._mp_ready
+                           else t('lobby.iam_not_ready'),
+                           self.menu_font_medium, kind='success')
+            ready.draw(self.screen, mouse_pos, selected=self._mp_ready)
+            self._lobby_actions[ready_rect] = self._toggle_ready
+
+        # Порт хоста — подсказка
+        if is_host and self.server:
+            ptext = self.menu_font_small.render(
+                t('lobby.port_hint').format(port=self.server.port),
+                True, COLOR_UI_TEXT_DIM)
+            self.screen.blit(ptext, (cx - ptext.get_width() // 2, btn_y + 60))
+
+    def _toggle_ready(self):
+        self._mp_ready = not self._mp_ready
+        # Отправляем готовность серверу (только удалённые клиенты)
+        if self.net_session is not None and hasattr(self.net_session, 'client'):
+            self.net_session.client.send(PKT_LOBBY_SET, {'ready': self._mp_ready})
 
     def _match_load_iter(self, cfg):
         """Генератор загрузки матча: yield (progress, localization_key)."""
@@ -677,6 +1252,7 @@ class Game:
         seed = cfg.get('seed') or random.randint(0, 999999)
         self._match_seed = seed
         size = MATCH_SIZES.get(cfg.get('map_size', 'medium'), 256)
+        local_id = int(cfg.get('local_player_id', 0))
 
         # 1) Генерация ландшафта (чанками)
         tm = TileMap(size, size, seed=seed, spawn_count=cfg['players'],
@@ -687,12 +1263,18 @@ class Game:
         # 2) Скелет игрового мира (без тяжёлой предгенерации)
         start_titan, start_plasma = MATCH_START_RESOURCES.get(
             cfg.get('start_resources', 'normal'), (STARTING_TITAN, STARTING_PLASMA))
-        gs = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=0,
+        gs = GameState(self.screen_w, self.screen_h, seed=seed, local_player_id=local_id,
                        tilemap=tm, player_count=cfg['players'],
                        start_titan=start_titan, start_plasma=start_plasma,
                        defer_pregen=True, match_settings=cfg)
         self.game_state = gs
         gs.clock = self.clock
+        # Сетевая сессия и имена игроков
+        if cfg.get('mp'):
+            gs.net_session = self.net_session
+            for pid, name in (cfg.get('mp_names') or {}).items():
+                if pid in gs.players:
+                    gs.players[pid].name = str(name)[:20]
         yield 0.46, 'loading.quantum_core'
 
         # 3) Предгенерация миникарты (чанками)
@@ -713,18 +1295,24 @@ class Game:
         yield 0.97, 'loading.ready'
 
     def _setup_ai_brains(self, cfg):
-        """Создать ИИ-мозги для всех нечеловеческих игроков.
+        """Создать ИИ-мозги для слотов, помеченных как ИИ.
 
-        В одиночной игре человек всегда player 0, остальные — ИИ.
+        В одиночной игре человек — player 0, остальные — ИИ;
+        в сетевой игре список ИИ-слотов приходит из лобби.
         """
         from ai.brain import AIBrain
 
         difficulty = cfg.get('ai_difficulty', 'standard')
         strategy = cfg.get('ai_strategy', 'random')
 
-        for pid in range(1, len(self.game_state.players)):
-            brain = AIBrain(pid, difficulty=difficulty, strategy=strategy)
-            self.game_state.ai_brains[pid] = brain
+        slot_ids = cfg.get('ai_slot_ids')
+        if slot_ids is None:
+            slot_ids = list(range(1, len(self.game_state.players)))
+
+        for pid in slot_ids:
+            if pid in self.game_state.players:
+                brain = AIBrain(pid, difficulty=difficulty, strategy=strategy)
+                self.game_state.ai_brains[pid] = brain
 
     def _update_loading(self, events):
         """Обработка событий на экране загрузки."""
@@ -749,7 +1337,24 @@ class Game:
 
     def _finish_loading(self):
         self.match_start_countdown = 3.5  # 3... 2... 1... BATTLE START!
+        # В сетевой игре ждём всех: докладываем о готовности и держим симуляцию
+        if self.game_state is not None and self.game_state.net_session is not None:
+            self.match_start_countdown = 0
+            self._net_paused = True
+            self._sim_tick_counter = 0
+            self._net_cmd_buckets.clear()
+            self._send_loaded()
         self.state = STATE_PLAYING
+
+    def _send_loaded(self):
+        if self.net_session is None:
+            return
+        if hasattr(self.net_session, 'client'):
+            self.net_session.client.send(PKT_LOBBY_SET, {'loaded': True})
+        else:
+            # Хост: напрямую на сервер
+            self.server._handle_packet(self.server.players[self.net_session.player_id],
+                                       PKT_LOBBY_SET, {'loaded': True})
 
     def _render_loading(self):
         """Анимированный экран загрузки."""
@@ -920,55 +1525,36 @@ class Game:
         # Обновляем рендер-менеджер (анимации воды и т.д.)
         gs.render_manager.update(dt)
 
+        # === Фиксированный тик симуляции (детерминированный локстеп) ===
         if not hasattr(self, 'match_start_countdown') or self.match_start_countdown <= 0:
-            gs.game_time += dt
-
-            # Пространственный хеш
-            gs.spatial_hash.clear()
-            for entity in gs.get_all_entities():
-                if entity.alive:
-                    gs.spatial_hash.insert(entity)
-
-            # Юниты
-            for unit in gs.units[:]:
-                if unit.alive:
-                    unit.update(dt, gs)
-                else:
-                    unit.death_timer += dt
-                    if unit.death_timer > unit.death_duration:
-                        gs.units.remove(unit)
-
-            # Здания
-            for building in gs.buildings[:]:
-                if building.alive:
-                    building.update(dt, gs)
-                else:
-                    building.death_timer += dt
-                    if building.death_timer > building.death_duration:
-                        gs.buildings.remove(building)
-
-            # Supply
-            for pid, player in gs.players.items():
-                player.recalculate_supply(gs.buildings)
-                player.recalculate_current_supply(gs.units)
-
-            # Боевая система
-            gs.combat.update(dt, gs)
-
-            # Туман войны
-            self._update_fog_of_war(dt)
-
-            # Улучшения
-            gs.upgrade_system.update(dt, gs.game_time, gs)
-
-            # Пассивные эффекты
-            self._update_upgrade_effects(dt)
+            if not self._net_paused:
+                # В сетевой игре не убегаем вперёд от тика сервера
+                if gs.net_session is not None:
+                    now = time.monotonic()
+                    extrapolated = self._net_server_tick + \
+                        max(0.0, now - self._net_last_sync_wall) * SIM_RATE
+                    if self._sim_tick_counter >= extrapolated - 2:
+                        self._sim_accumulator = min(self._sim_accumulator, SIM_DT)
+                self._sim_accumulator += dt
+                ticks = 0
+                while self._sim_accumulator >= SIM_DT and ticks < 6:
+                    self._sim_accumulator -= SIM_DT
+                    self._sim_tick()
+                    ticks += 1
+                if ticks >= 6:
+                    # Не догоняем бесконечно после лагов
+                    self._sim_accumulator = 0.0
         else:
             # Даже во время паузы нужно обновлять spatial_hash для выделения юнитов рамкой
             gs.spatial_hash.clear()
             for entity in gs.get_all_entities():
                 if entity.alive:
                     gs.spatial_hash.insert(entity)
+
+        # === Визуальные обновления (клиентская часть) ===
+
+        # Туман войны
+        self._update_fog_of_war(dt)
 
         # Миникарта
         gs.minimap.update(dt)
@@ -983,15 +1569,94 @@ class Game:
         if gs.command_system.build_mode:
             gs.command_system.update_build_preview(mouse_pos, gs.camera, gs.tilemap)
 
-        # ИИ (мозги на каждого бота)
+    def _sim_tick(self):
+        """Один детерминированный тик симуляции (SIM_DT).
+
+        Выполняется одинаково на всех клиентах: сетевые команды
+        применяются на границе тика в порядке seq сервера.
+        """
+        gs = self.game_state
+        dt = SIM_DT
+        gs.game_time += dt
+
+        # 1. Сетевые команды этого тика (в порядке seq сервера)
+        current = self._sim_tick_counter
+        due = self._net_cmd_buckets.pop(current, [])
+        # Опоздавшие команды (тик уже прошёл) — применяем сейчас
+        for tick in [t for t in self._net_cmd_buckets if t < current]:
+            due.extend(self._net_cmd_buckets.pop(tick))
+        if due:
+            from network.commands import apply_command
+            gs._dbg_tick = current
+            for _seq, cmd in sorted(due, key=lambda item: item[0]):
+                apply_command(gs, cmd)
+
+        self._sim_tick_counter += 1
+
+        # 2. Пространственный хеш
+        gs.spatial_hash.clear()
+        for entity in gs.get_all_entities():
+            if entity.alive:
+                gs.spatial_hash.insert(entity)
+
+        # 3. Юниты
+        for unit in gs.units[:]:
+            if unit.alive:
+                unit.update(dt, gs)
+            else:
+                unit.death_timer += dt
+                if unit.death_timer > unit.death_duration:
+                    gs.units.remove(unit)
+
+        # 4. Здания
+        for building in gs.buildings[:]:
+            if building.alive:
+                building.update(dt, gs)
+            else:
+                building.death_timer += dt
+                if building.death_timer > building.death_duration:
+                    gs.buildings.remove(building)
+
+        # 5. Supply
+        for pid, player in gs.players.items():
+            player.recalculate_supply(gs.buildings)
+            player.recalculate_current_supply(gs.units)
+
+        # 6. Боевая система
+        gs.combat.update(dt, gs)
+
+        # 7. Улучшения
+        gs.upgrade_system.update(dt, gs.game_time, gs)
+
+        # 8. Пассивные эффекты
+        self._update_upgrade_effects(dt)
+
+        # 9. ИИ (мозги на каждого бота)
         for brain in gs.ai_brains.values():
             brain.update(dt, gs)
 
-        # Предложение бота о сдаче (одно за матч)
+        # 10. Предложение бота о сдаче (одно за матч)
         self._poll_surrender_request()
 
-        # Победа
+        # 11. Хэш состояния (детект рассинхрона)
+        self._sync_hash_tick()
+
+        # 12. Победа
         self._check_victory()
+
+    def _sync_hash_tick(self):
+        """Раз в SYNC_HASH_INTERVAL секунд — обмен хэшами состояния."""
+        gs = self.game_state
+        self._sync_hash_timer += SIM_DT
+        if self._sync_hash_timer < SYNC_HASH_INTERVAL:
+            return
+        self._sync_hash_timer = 0.0
+
+        from network.commands import compute_state_hash
+        self._last_state_hash = compute_state_hash(gs)
+        if gs.net_session is not None and gs.net_session.connected:
+            gs.net_session.send_sync_hash(int(gs.game_time * 30),
+                                          self._last_state_hash)
 
     def _update_fog_of_war(self, dt):
         gs = self.game_state
@@ -1161,7 +1826,10 @@ class Game:
 
         if gs.chat.is_open:
             if event.key == pygame.K_RETURN:
-                gs.chat.send(gs.players[gs.local_player_id].name)
+                msg = gs.chat.send(gs.players[gs.local_player_id].name)
+                # В сетевой игре отправляем сообщение остальным
+                if msg and gs.net_session is not None:
+                    gs.net_session.send_chat(msg['text'], msg['mode'])
             elif event.key == pygame.K_ESCAPE:
                 gs.chat.is_open = False
             elif event.key == pygame.K_TAB:
@@ -1180,6 +1848,10 @@ class Game:
             else:
                 self.state = STATE_PAUSED
                 self.pause_votes.clear()
+                # В сетевой игре пауза требует согласия остальных
+                if gs.net_session is not None:
+                    gs.net_session.send_pause()
+                    self._net_paused = True
         elif event.key == pygame.K_RETURN:
             gs.chat.toggle()
         elif event.key == pygame.K_g:
@@ -1197,17 +1869,31 @@ class Game:
         elif event.key == pygame.K_a:
             gs.selection.attack_move_mode = not gs.selection.attack_move_mode
         elif event.key == pygame.K_h:
-            StanceSystem.set_stance(gs.selection.selected_entities, 'HOLD_POSITION')
+            unit_ids = [e.id for e in gs.selection.selected_entities
+                        if e.is_unit and e.player_id == gs.local_player_id]
+            if unit_ids:
+                gs.issue_command({'cmd': 'stance', 'unit_ids': unit_ids,
+                                  'stance': 'HOLD_POSITION'})
         elif event.key == pygame.K_t:
-            StanceSystem.cycle_stance(gs.selection.selected_entities)
+            units = [e for e in gs.selection.selected_entities
+                     if e.is_unit and e.player_id == gs.local_player_id]
+            if units:
+                from systems.stances import StanceSystem
+                StanceSystem.cycle_stance(units)
+                new_stance = units[0].stance
+                gs.issue_command({'cmd': 'stance',
+                                  'unit_ids': [u.id for u in units],
+                                  'stance': new_stance})
         elif event.key == pygame.K_s and not pygame.key.get_pressed()[pygame.K_LCTRL]:
-            for e in gs.selection.selected_entities:
-                if hasattr(e, 'stop'):
-                    e.stop()
+            unit_ids = [e.id for e in gs.selection.selected_entities
+                        if e.is_unit and e.player_id == gs.local_player_id]
+            if unit_ids:
+                gs.issue_command({'cmd': 'stop', 'unit_ids': unit_ids})
         elif event.key == pygame.K_e:
-            for e in gs.selection.selected_entities:
-                if hasattr(e, 'toggle_siege'):
-                    e.toggle_siege()
+            unit_ids = [e.id for e in gs.selection.selected_entities
+                        if e.is_unit and e.player_id == gs.local_player_id]
+            if unit_ids:
+                gs.issue_command({'cmd': 'siege', 'unit_ids': unit_ids})
 
     def _handle_game_mouse_down(self, event):
         gs = self.game_state
@@ -1231,6 +1917,8 @@ class Game:
             world_x, world_y = gs.camera.screen_to_world(*event.pos)
             ping_type = 'retreat' if keys[pygame.K_LCTRL] else 'attention'
             gs.ping_system.add_ping(world_x, world_y, ping_type)
+            if gs.net_session is not None:
+                gs.net_session.send_ping(world_x, world_y, ping_type)
             return
 
         if event.button == 1 and gs.minimap.is_point_on_minimap(*event.pos):
@@ -1241,9 +1929,11 @@ class Game:
             world_x, world_y = gs.minimap.minimap_to_world(*event.pos)
             world_x = max(0, min(world_x, gs.tilemap.width * TILE_SIZE))
             world_y = max(0, min(world_y, gs.tilemap.height * TILE_SIZE))
-            for unit in gs.selection.selected_entities:
-                if unit.is_unit and unit.player_id == gs.local_player_id:
-                    unit.move_to_point(world_x, world_y, gs.tilemap)
+            unit_ids = [u.id for u in gs.selection.selected_entities
+                        if u.is_unit and u.player_id == gs.local_player_id]
+            if unit_ids:
+                gs.issue_command({'cmd': 'move', 'unit_ids': unit_ids,
+                                  'x': world_x, 'y': world_y})
             return
 
         if event.button == 1 and gs.hud.is_point_on_panel(*event.pos):
@@ -1391,6 +2081,17 @@ class Game:
 
         # ===== ПАНЕЛЬ СДАЧИ БОТА =====
         self._render_surrender_panel()
+
+        # ===== ПРЕДУПРЕЖДЕНИЕ О РАССИНХРОНЕ =====
+        if self._desync_detected:
+            warn = self.menu_font_medium.render(t('mp.desync'), True,
+                                                COLOR_UI_DANGER)
+            bw = warn.get_width() + 30
+            bx = (self.screen_w - bw) // 2
+            bar = pygame.Surface((bw, 34), pygame.SRCALPHA)
+            bar.fill((60, 10, 10, 200))
+            self.screen.blit(bar, (bx, 66))
+            self.screen.blit(warn, (bx + 15, 70))
 
         # ===== ДЕБАГ =====
         if gs.debug_mode:
@@ -1546,7 +2247,12 @@ class Game:
                 break
 
     def _try_continue(self):
-        self.pause_votes.add(self.game_state.local_player_id)
+        gs = self.game_state
+        if gs is not None and gs.net_session is not None:
+            # Решение за всеми: сервер рассылает голоса и снимает паузу
+            gs.net_session.send_unpause_vote()
+            return
+        self.pause_votes.add(gs.local_player_id if gs else 0)
         if len(self.pause_votes) >= self.total_players:
             self.state = STATE_PLAYING
             self.pause_votes.clear()

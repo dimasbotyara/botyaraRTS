@@ -107,15 +107,22 @@ class SelectionSystem:
 
             own_units = [e for e in self.selected_entities
                          if e.is_unit and e.player_id == game_state.local_player_id]
+            if not own_units:
+                return
+            unit_ids = [u.id for u in own_units]
 
             if target_entity:
                 # Атака конкретной цели (вражеской ИЛИ СОЮЗНОЙ — Deny/Friendly Fire)
-                for unit in own_units:
-                    unit.attack_target_entity(target_entity)
+                game_state.issue_command({
+                    'cmd': 'attack', 'unit_ids': unit_ids,
+                    'target_id': target_entity.id,
+                })
             else:
                 # Attack-Move к точке на земле
-                for unit in own_units:
-                    unit.move_to_point(world_x, world_y, game_state.tilemap, attack_move=True)
+                game_state.issue_command({
+                    'cmd': 'move', 'unit_ids': unit_ids,
+                    'x': world_x, 'y': world_y, 'attack_move': True,
+                })
             return
         world_x, world_y = camera.screen_to_world(*pos)
 
@@ -179,25 +186,31 @@ class SelectionSystem:
                          if e.is_building and e.player_id == game_state.local_player_id]
 
         # Rally point для зданий ставится ВСЕГДА при ПКМ по миру/минералам
-        for building in own_buildings:
-            if building.can_produce:
-                building.set_rally_point(world_x, world_y)
+        rally_ids = [b.id for b in own_buildings if b.can_produce]
+        if rally_ids:
+            game_state.issue_command({
+                'cmd': 'rally', 'unit_ids': rally_ids,
+                'x': world_x, 'y': world_y,
+            })
 
         if target_entity:
             if target_entity.player_id != game_state.local_player_id:
                 # Вражеский объект — атака
-                for unit in own_units:
-                    unit.attack_target_entity(target_entity, shift=shift_held)
+                if own_units:
+                    game_state.issue_command({
+                        'cmd': 'attack', 'unit_ids': [u.id for u in own_units],
+                        'target_id': target_entity.id, 'shift': shift_held,
+                    })
             else:
-                # Свой объект — если это недостроенное здание, отправляем рабочих достраивать
+                # Свой объект — недостроенное здание: рабочие достраивают
                 if target_entity.is_building and not target_entity.is_completed:
                     from entities.worker import Worker
-                    for unit in own_units:
-                        if isinstance(unit, Worker):
-                            # У Worker есть метод command_build(building_type, x, y), 
-                            # но нам нужно чтобы он просто пошел к нему и строил.
-                            # Добавим метод command_resume_build(target_building) в Worker
-                            unit.command_resume_build(target_entity, shift=shift_held)
+                    worker_ids = [u.id for u in own_units if isinstance(u, Worker)]
+                    if worker_ids:
+                        game_state.issue_command({
+                            'cmd': 'resume_build', 'unit_ids': worker_ids,
+                            'target_id': target_entity.id, 'shift': shift_held,
+                        })
         else:
             # Клик по земле или ресурсу
             tile_x = int(world_x // TILE_SIZE)
@@ -208,25 +221,27 @@ class SelectionSystem:
             from entities.worker import Worker
 
             if tile in (TILE_TITAN_ORE, TILE_PLASMA_GEYSER):
-                # Отправляем рабочих на добычу
-                for unit in own_units:
-                    if isinstance(unit, Worker):
-                        unit.command_harvest(tile_x, tile_y, shift=shift_held)
-                    else:
-                        unit.move_to_point(world_x, world_y, game_state.tilemap, shift=shift_held)
+                worker_ids = [u.id for u in own_units if isinstance(u, Worker)]
+                other_ids = [u.id for u in own_units if not isinstance(u, Worker)]
+                if worker_ids:
+                    game_state.issue_command({
+                        'cmd': 'harvest', 'unit_ids': worker_ids,
+                        'tx': tile_x, 'ty': tile_y, 'shift': shift_held,
+                    })
+                if other_ids:
+                    game_state.issue_command({
+                        'cmd': 'move', 'unit_ids': other_ids,
+                        'x': world_x, 'y': world_y, 'shift': shift_held,
+                    })
             else:
                 # Приказ движения
-                moved_any = False
-                for unit in own_units:
-                    unit.move_to_point(world_x, world_y, game_state.tilemap, shift=shift_held)
-                    moved_any = True
-                if moved_any and hasattr(game_state, 'ping_system'):
-                    game_state.ping_system.add_ping(world_x, world_y, 'move')
-
-                # Rally point для зданий
-                for building in own_buildings:
-                    if building.can_produce:
-                        building.set_rally_point(world_x, world_y)
+                if own_units:
+                    game_state.issue_command({
+                        'cmd': 'move', 'unit_ids': [u.id for u in own_units],
+                        'x': world_x, 'y': world_y, 'shift': shift_held,
+                    })
+                    if hasattr(game_state, 'ping_system'):
+                        game_state.ping_system.add_ping(world_x, world_y, 'move')
 
     def _select_in_rect(self, camera, game_state, keys):
         """Выделение рамкой."""

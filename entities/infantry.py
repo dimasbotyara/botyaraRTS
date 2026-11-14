@@ -127,7 +127,7 @@ class Sniper(Unit):
         my_h = game_state.tilemap.get_height(*self.get_tile_pos())
         t_h = game_state.tilemap.get_height(*target.get_tile_pos())
         if t_h > my_h and not self.is_flying:
-            if random.random() < 0.25:
+            if game_state.rng.random() < 0.25:
                 return
 
         damage = self._apply_damage_modifiers(damage, target)

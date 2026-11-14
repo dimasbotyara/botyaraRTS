@@ -327,7 +327,7 @@ class UpgradeSystem:
         if len(available) < UPGRADE_CHOICES:
             self.current_choices = available
         else:
-            self.current_choices = random.sample(available, UPGRADE_CHOICES)
+            self.current_choices = game_state.rng.sample(available, UPGRADE_CHOICES)
 
         if self.current_choices:
             self.is_choosing = True

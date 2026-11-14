@@ -153,6 +153,13 @@ UPGRADE_TIER_THRESHOLDS = {
 DEFAULT_PORT = 5555
 TICK_RATE = 20  # серверных тиков в секунду
 NET_BUFFER_SIZE = 4096
+NET_PROTOCOL_VERSION = 2
+
+# Фиксированный шаг симуляции (детерминированный локстеп)
+SIM_DT = 1.0 / 30.0
+SIM_RATE = 30
+SYNC_HASH_INTERVAL = 5.0  # сек симуляции между хэшами рассинхрона
+LOCKSTEP_DELAY = 8        # тиков задержки команды (~270 мс)
 
 # === GAMEPLAY ===
 WORKER_HARVEST_AMOUNT = 8

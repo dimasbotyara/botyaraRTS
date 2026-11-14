@@ -64,6 +64,10 @@ class Entity:
 
     def update(self, dt, game_state):
         """Обновление каждый кадр."""
+        # Ссылка на состояние мира (нужна детерминированным эффектам,
+        # например уклонению авиации, у которых нет доступа к gs в take_damage)
+        self._last_game_state = game_state
+
         if not self.alive:
             self.death_timer += dt
             return
