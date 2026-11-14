@@ -2,6 +2,8 @@
 
 <img src="assets/branding/banner_en.png" alt="botyaraRTS" width="100%"/>
 
+[🇬🇧 English](README.md) | [🇷🇺 Русский](README.ru.md)
+
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Pygame](https://img.shields.io/badge/pygame-2.6-green)
 ![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen)
@@ -39,6 +41,29 @@ Bots that actually play the game — they build, expand, scout, defend, retreat 
 ### 🎛️ Match Setup Screen
 Creating a battle is a real screen now: opponents (1–3 AI), AI difficulty, AI doctrine, map size (S/M/L), starting resources, resource density and map seed. Your last choices are remembered.
 
+<div align="center">
+<img src="screenshots/match_setup.png" alt="Match setup" width="80%"/>
+</div>
+
+### 🖼️ Screenshots
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>Base & mining</b><br/><img src="screenshots/gameplay.png" width="400"/></td>
+<td align="center"><b>Tank battle</b><br/><img src="screenshots/battle.png" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Enemy surrender</b><br/><img src="screenshots/surrender.png" width="400"/></td>
+<td align="center"><b>LAN lobby</b><br/><img src="screenshots/lobby.png" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Main menu</b><br/><img src="screenshots/menu.png" width="400"/></td>
+<td align="center"><b>Match loading</b><br/><img src="screenshots/loading.png" width="400"/></td>
+</tr>
+</table>
+</div>
+
 ### ⚔️ RTS Core & Tactical Gameplay
 - **Auto-Worker Economy** — starting workers auto-harvest the nearest Titan ore and Plasma geysers
 - **Shift Command Queuing** — chain movement and attack orders by holding `Shift`
@@ -52,7 +77,7 @@ Creating a battle is a real screen now: opponents (1–3 AI), AI difficulty, AI 
 Every **3 minutes** — **3 tech cards** to pick from, **30 upgrades** across 3 tiers, up to 3 active, recycle for Titan.
 
 ### 🌫️ Fog of War & 🎨 Rendering
-- Explored vs. visible vision grid; enemies hidden in the fog
+- Map terrain is visible from the start (no black screens at countdown); enemies hide outside your vision circles
 - Procedural sci-fi art: slope-lit terrain, animated water with shore foam, faceted glowing crystals, steaming geysers, damage smoke & fire on wounded units, shield shimmer, team-colored wreckage
 - `rendering/` package with per-category renderers + `RenderManager`
 
@@ -185,6 +210,13 @@ Zero external runtime dependencies beyond `pygame`.
 - **New difficulty** — add a profile to `ai/config.py`
 - **New upgrade card / unit / building** — `systems/upgrades.py` / `entities/` + register a renderer
 - **Balance & presets** — `settings.py` (`MATCH_SIZES`, `MATCH_START_RESOURCES`, `MATCH_DENSITY`)
+
+---
+
+## 📚 Guides
+
+- 🏗️ [Buildings (EN)](BUILDINGS_EN.md) — stats, production lists and tactics for every structure
+- 🏗️ [Здания (RU)](BUILDINGS_RU.md) — то же на русском
 
 ---
 

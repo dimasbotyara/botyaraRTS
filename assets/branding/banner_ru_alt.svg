@@ -1,0 +1,244 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0714"/>
+      <stop offset="0.5" stop-color="#150d26"/>
+      <stop offset="1" stop-color="#241338"/>
+    </linearGradient>
+    <radialGradient id="nebA" cx="0.78" cy="0.25" r="0.6">
+      <stop offset="0" stop-color="#5a1440" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#5a1440" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebB" cx="0.15" cy="0.7" r="0.55">
+      <stop offset="0" stop-color="#0e3a5c" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0e3a5c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="acc2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff5f8a"/>
+      <stop offset="1" stop-color="#ff9a3d"/>
+    </linearGradient>
+    <filter id="glow2" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="frame-alt">
+      <rect x="0" y="0" width="1280" height="400" rx="16"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#frame-alt)">
+
+    <rect width="1280" height="400" fill="url(#bg2)"/>
+    <rect width="1280" height="400" fill="url(#nebA)"/>
+    <rect width="1280" height="400" fill="url(#nebB)"/>
+
+    <g>
+    <circle cx="818" cy="10" r="1.2" fill="#ffffff" opacity="0.42"/>
+  <circle cx="943" cy="271" r="2.2" fill="#ffe9c4" opacity="0.31"/>
+  <circle cx="41" cy="37" r="1.0" fill="#cfe8ff" opacity="0.60"/>
+  <circle cx="718" cy="286" r="2.2" fill="#ffe9c4" opacity="0.54"/>
+  <circle cx="754" cy="324" r="0.8" fill="#ffffff" opacity="0.78"/>
+  <circle cx="894" cy="136" r="1.0" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="131" cy="152" r="1.2" fill="#a8d4ff" opacity="0.84"/>
+  <circle cx="1033" cy="292" r="2.2" fill="#ffe9c4" opacity="0.34"/>
+  <circle cx="101" cy="117" r="2.2" fill="#a8d4ff" opacity="0.87"/>
+  <circle cx="739" cy="282" r="0.8" fill="#a8d4ff" opacity="0.71"/>
+  <circle cx="1261" cy="342" r="0.8" fill="#ffe9c4" opacity="0.52"/>
+  <circle cx="814" cy="146" r="1.2" fill="#a8d4ff" opacity="0.50"/>
+  <circle cx="898" cy="273" r="0.8" fill="#ffffff" opacity="0.68"/>
+  <circle cx="684" cy="98" r="1.6" fill="#ffffff" opacity="0.52"/>
+  <circle cx="876" cy="337" r="0.8" fill="#cfe8ff" opacity="0.41"/>
+  <circle cx="1030" cy="160" r="0.8" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="272" cy="200" r="1.6" fill="#ffffff" opacity="0.35"/>
+  <circle cx="316" cy="225" r="1.2" fill="#ffe9c4" opacity="0.77"/>
+  <circle cx="1149" cy="160" r="1.0" fill="#ffffff" opacity="0.95"/>
+  <circle cx="652" cy="36" r="0.8" fill="#ffffff" opacity="0.85"/>
+  <circle cx="803" cy="317" r="1.6" fill="#ffe9c4" opacity="0.67"/>
+  <circle cx="488" cy="398" r="2.2" fill="#cfe8ff" opacity="0.43"/>
+  <circle cx="871" cy="46" r="2.2" fill="#a8d4ff" opacity="0.78"/>
+  <circle cx="143" cy="174" r="1.6" fill="#a8d4ff" opacity="0.25"/>
+  <circle cx="1244" cy="305" r="2.2" fill="#a8d4ff" opacity="0.89"/>
+  <circle cx="1077" cy="203" r="1.0" fill="#ffffff" opacity="0.36"/>
+  <circle cx="690" cy="311" r="2.2" fill="#a8d4ff" opacity="0.89"/>
+  <circle cx="625" cy="45" r="1.2" fill="#a8d4ff" opacity="0.87"/>
+  <circle cx="306" cy="96" r="2.2" fill="#cfe8ff" opacity="0.91"/>
+  <circle cx="937" cy="326" r="2.2" fill="#ffffff" opacity="0.79"/>
+  <circle cx="844" cy="379" r="1.0" fill="#ffe9c4" opacity="0.44"/>
+  <circle cx="1234" cy="372" r="1.0" fill="#ffe9c4" opacity="0.75"/>
+  <circle cx="1274" cy="260" r="1.6" fill="#ffe9c4" opacity="0.88"/>
+  <circle cx="155" cy="90" r="1.2" fill="#ffffff" opacity="0.26"/>
+  <circle cx="753" cy="3" r="0.8" fill="#cfe8ff" opacity="0.41"/>
+  <circle cx="1100" cy="28" r="1.0" fill="#ffe9c4" opacity="0.44"/>
+  <circle cx="274" cy="53" r="2.2" fill="#ffffff" opacity="0.65"/>
+  <circle cx="1004" cy="323" r="1.0" fill="#ffe9c4" opacity="0.32"/>
+  <circle cx="454" cy="164" r="0.8" fill="#cfe8ff" opacity="0.72"/>
+  <circle cx="78" cy="291" r="0.8" fill="#ffffff" opacity="0.42"/>
+  <circle cx="686" cy="56" r="1.0" fill="#ffffff" opacity="0.44"/>
+  <circle cx="1119" cy="30" r="2.2" fill="#cfe8ff" opacity="0.32"/>
+  <circle cx="1240" cy="371" r="1.0" fill="#ffe9c4" opacity="0.37"/>
+  <circle cx="616" cy="346" r="0.8" fill="#cfe8ff" opacity="0.37"/>
+  <circle cx="1261" cy="106" r="1.6" fill="#ffe9c4" opacity="0.45"/>
+  <circle cx="198" cy="119" r="0.8" fill="#cfe8ff" opacity="0.66"/>
+  <circle cx="957" cy="23" r="2.2" fill="#ffffff" opacity="0.58"/>
+  <circle cx="73" cy="203" r="1.0" fill="#cfe8ff" opacity="0.30"/>
+  <circle cx="864" cy="94" r="0.8" fill="#ffffff" opacity="0.91"/>
+  <circle cx="741" cy="16" r="0.8" fill="#a8d4ff" opacity="0.54"/>
+  <circle cx="1196" cy="82" r="1.2" fill="#ffe9c4" opacity="0.42"/>
+  <circle cx="168" cy="258" r="1.6" fill="#cfe8ff" opacity="0.47"/>
+  <circle cx="12" cy="248" r="2.2" fill="#cfe8ff" opacity="0.95"/>
+  <circle cx="688" cy="202" r="1.0" fill="#cfe8ff" opacity="0.90"/>
+  <circle cx="1125" cy="148" r="1.0" fill="#a8d4ff" opacity="0.56"/>
+  <circle cx="783" cy="395" r="2.2" fill="#a8d4ff" opacity="0.26"/>
+  <circle cx="1193" cy="41" r="1.0" fill="#cfe8ff" opacity="0.44"/>
+  <circle cx="950" cy="62" r="1.2" fill="#a8d4ff" opacity="0.67"/>
+  <circle cx="261" cy="254" r="1.2" fill="#a8d4ff" opacity="0.60"/>
+  <circle cx="1159" cy="338" r="0.8" fill="#a8d4ff" opacity="0.69"/>
+  <circle cx="56" cy="133" r="1.0" fill="#a8d4ff" opacity="0.70"/>
+  <circle cx="207" cy="177" r="1.6" fill="#cfe8ff" opacity="0.64"/>
+  <circle cx="96" cy="353" r="1.0" fill="#a8d4ff" opacity="0.63"/>
+  <circle cx="746" cy="59" r="1.0" fill="#a8d4ff" opacity="0.28"/>
+  <circle cx="1151" cy="318" r="0.8" fill="#ffffff" opacity="0.88"/>
+  <circle cx="873" cy="267" r="1.2" fill="#ffe9c4" opacity="0.80"/>
+  <circle cx="1247" cy="300" r="1.0" fill="#ffffff" opacity="0.86"/>
+  <circle cx="1128" cy="10" r="1.2" fill="#ffe9c4" opacity="0.80"/>
+  <circle cx="1027" cy="346" r="1.0" fill="#cfe8ff" opacity="0.44"/>
+  <circle cx="490" cy="15" r="1.6" fill="#ffe9c4" opacity="0.41"/>
+  <circle cx="448" cy="328" r="1.0" fill="#ffffff" opacity="0.41"/>
+  <circle cx="510" cy="111" r="0.8" fill="#a8d4ff" opacity="0.93"/>
+  <circle cx="449" cy="204" r="2.2" fill="#cfe8ff" opacity="0.48"/>
+  <circle cx="148" cy="388" r="1.0" fill="#a8d4ff" opacity="0.66"/>
+  <circle cx="49" cy="239" r="1.2" fill="#a8d4ff" opacity="0.76"/>
+  <circle cx="559" cy="394" r="0.8" fill="#ffffff" opacity="0.52"/>
+  <circle cx="326" cy="284" r="0.8" fill="#ffffff" opacity="0.61"/>
+  <circle cx="466" cy="28" r="1.2" fill="#cfe8ff" opacity="0.69"/>
+  <circle cx="921" cy="120" r="1.2" fill="#a8d4ff" opacity="0.72"/>
+  <circle cx="515" cy="118" r="1.0" fill="#ffe9c4" opacity="0.38"/>
+  <circle cx="867" cy="361" r="2.2" fill="#ffe9c4" opacity="0.65"/>
+  <circle cx="701" cy="0" r="1.2" fill="#a8d4ff" opacity="0.40"/>
+  <circle cx="595" cy="177" r="1.0" fill="#ffffff" opacity="0.61"/>
+  <circle cx="843" cy="114" r="2.2" fill="#ffffff" opacity="0.48"/>
+  <circle cx="861" cy="90" r="1.0" fill="#cfe8ff" opacity="0.35"/>
+  <circle cx="313" cy="190" r="0.8" fill="#ffffff" opacity="0.57"/>
+  <circle cx="919" cy="154" r="1.6" fill="#cfe8ff" opacity="0.42"/>
+  <circle cx="1143" cy="344" r="0.8" fill="#ffffff" opacity="0.79"/>
+  <circle cx="225" cy="383" r="2.2" fill="#ffffff" opacity="0.58"/>
+  <circle cx="1174" cy="49" r="1.0" fill="#a8d4ff" opacity="0.81"/>
+    </g>
+
+    <!-- луна -->
+    <circle cx="150" cy="80" r="40" fill="#241b33" stroke="#4a3a63" stroke-width="2"/>
+    <circle cx="138" cy="70" r="7" fill="#312547"/>
+    <circle cx="160" cy="92" r="5" fill="#312547"/>
+    <circle cx="146" cy="96" r="4" fill="#312547"/>
+
+    <!-- авиация -->
+    
+  <g transform="translate(520,84) scale(1.25)">
+    <line x1="14" y1="0" x2="214" y2="0" stroke="#00d4ff" stroke-width="2.5" opacity="0.35" stroke-dasharray="14 10"/>
+    <path d="M -44,0 L 10,-9 L 26,0 L 10,9 Z" fill="#26344a" stroke="#3f567a" stroke-width="2"/>
+    <path d="M -2,-9 L 12,-24 L 20,-10 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-36" cy="0" r="2.6" fill="#00d4ff">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+    
+  <g transform="translate(760,150) scale(0.95)">
+    <line x1="14" y1="0" x2="164" y2="0" stroke="#00d4ff" stroke-width="2.5" opacity="0.35" stroke-dasharray="14 10"/>
+    <path d="M -44,0 L 10,-9 L 26,0 L 10,9 Z" fill="#26344a" stroke="#3f567a" stroke-width="2"/>
+    <path d="M -2,-9 L 12,-24 L 20,-10 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-36" cy="0" r="2.6" fill="#00d4ff">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+    
+  <g transform="translate(400,190) scale(0.75)">
+    <line x1="14" y1="0" x2="124" y2="0" stroke="#ff5f8a" stroke-width="2.5" opacity="0.35" stroke-dasharray="14 10"/>
+    <path d="M -44,0 L 10,-9 L 26,0 L 10,9 Z" fill="#26344a" stroke="#3f567a" stroke-width="2"/>
+    <path d="M -2,-9 L 12,-24 L 20,-10 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-36" cy="0" r="2.6" fill="#ff5f8a">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+    <!-- земля -->
+    <rect x="0" y="318" width="1280" height="82" fill="#0e0a18"/>
+    <rect x="0" y="316" width="1280" height="3" fill="#4a2050"/>
+    <g stroke="#241a38" stroke-width="1.5" opacity="0.8">
+      <line x1="0" y1="344" x2="1280" y2="344"/>
+      <line x1="0" y1="370" x2="1280" y2="370"/>
+      <line x1="60" y1="318" x2="0" y2="400"/><line x1="200" y1="318" x2="140" y2="400"/><line x1="340" y1="318" x2="280" y2="400"/><line x1="480" y1="318" x2="420" y2="400"/><line x1="620" y1="318" x2="560" y2="400"/><line x1="760" y1="318" x2="700" y2="400"/><line x1="900" y1="318" x2="840" y2="400"/><line x1="1040" y1="318" x2="980" y2="400"/><line x1="1180" y1="318" x2="1120" y2="400"/>
+    </g>
+
+    <!-- танковая колонна -->
+    
+  <g transform="translate(1090,332) scale(1.3)">
+    <path d="M -52,-18 L 46,-18 L 58,-4 L 50,6 L -50,6 L -60,-6 Z"
+          fill="#232f42" stroke="#3a4c68" stroke-width="2"/>
+    <path d="M -34,-34 L 22,-34 L 30,-18 L -40,-18 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="-6" y="-30" width="86" height="8" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-34" cy="-30" r="3" fill="#00d4ff"/>
+    <path d="M -58,4 Q 0,16 52,4 L 48,18 Q 0,28 -54,18 Z" fill="#141c28" stroke="#2e3d54" stroke-width="2"/>
+    <g fill="#0e1520" stroke="#00d4ff" stroke-width="1.6">
+      <circle cx="-40" cy="12" r="6"/><circle cx="-14" cy="13" r="6"/>
+      <circle cx="12" cy="13" r="6"/><circle cx="38" cy="12" r="6"/>
+    </g>
+    <rect x="-58" y="20" width="104" height="3" rx="1.5" fill="#00d4ff" opacity="0.55"/>
+  </g>
+    
+  <g transform="translate(950,340) scale(1.0)">
+    <path d="M -52,-18 L 46,-18 L 58,-4 L 50,6 L -50,6 L -60,-6 Z"
+          fill="#232f42" stroke="#3a4c68" stroke-width="2"/>
+    <path d="M -34,-34 L 22,-34 L 30,-18 L -40,-18 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="-6" y="-30" width="86" height="8" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-34" cy="-30" r="3" fill="#1e90ff"/>
+    <path d="M -58,4 Q 0,16 52,4 L 48,18 Q 0,28 -54,18 Z" fill="#141c28" stroke="#2e3d54" stroke-width="2"/>
+    <g fill="#0e1520" stroke="#1e90ff" stroke-width="1.6">
+      <circle cx="-40" cy="12" r="6"/><circle cx="-14" cy="13" r="6"/>
+      <circle cx="12" cy="13" r="6"/><circle cx="38" cy="12" r="6"/>
+    </g>
+    <rect x="-58" y="20" width="104" height="3" rx="1.5" fill="#1e90ff" opacity="0.55"/>
+  </g>
+    
+  <g transform="translate(835,346) scale(0.8)">
+    <path d="M -52,-18 L 46,-18 L 58,-4 L 50,6 L -50,6 L -60,-6 Z"
+          fill="#232f42" stroke="#3a4c68" stroke-width="2"/>
+    <path d="M -34,-34 L 22,-34 L 30,-18 L -40,-18 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="-6" y="-30" width="86" height="8" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-34" cy="-30" r="3" fill="#1e90ff"/>
+    <path d="M -58,4 Q 0,16 52,4 L 48,18 Q 0,28 -54,18 Z" fill="#141c28" stroke="#2e3d54" stroke-width="2"/>
+    <g fill="#0e1520" stroke="#1e90ff" stroke-width="1.6">
+      <circle cx="-40" cy="12" r="6"/><circle cx="-14" cy="13" r="6"/>
+      <circle cx="12" cy="13" r="6"/><circle cx="38" cy="12" r="6"/>
+    </g>
+    <rect x="-58" y="20" width="104" height="3" rx="1.5" fill="#1e90ff" opacity="0.55"/>
+  </g>
+    
+  <g transform="translate(120,338) scale(1.15)">
+    <path d="M -52,-18 L 46,-18 L 58,-4 L 50,6 L -50,6 L -60,-6 Z"
+          fill="#232f42" stroke="#3a4c68" stroke-width="2"/>
+    <path d="M -34,-34 L 22,-34 L 30,-18 L -40,-18 Z" fill="#1b2432" stroke="#3a4c68" stroke-width="2"/>
+    <rect x="-6" y="-30" width="86" height="8" rx="3" fill="#222c3e" stroke="#3a4c68" stroke-width="1.5"/>
+    <circle cx="-34" cy="-30" r="3" fill="#ff5f8a"/>
+    <path d="M -58,4 Q 0,16 52,4 L 48,18 Q 0,28 -54,18 Z" fill="#141c28" stroke="#2e3d54" stroke-width="2"/>
+    <g fill="#0e1520" stroke="#ff5f8a" stroke-width="1.6">
+      <circle cx="-40" cy="12" r="6"/><circle cx="-14" cy="13" r="6"/>
+      <circle cx="12" cy="13" r="6"/><circle cx="38" cy="12" r="6"/>
+    </g>
+    <rect x="-58" y="20" width="104" height="3" rx="1.5" fill="#ff5f8a" opacity="0.55"/>
+  </g>
+
+    <!-- заголовок по центру -->
+    <g filter="url(#glow2)">
+      <text x="640" y="232" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
+            font-weight="bold" font-size="96" letter-spacing="8" fill="url(#acc2)">БОТЯРА RTS</text>
+    </g>
+    <text x="636" y="228" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
+          font-weight="bold" font-size="96" letter-spacing="8" fill="#f4ecff" opacity="0.95">БОТЯРА RTS</text>
+
+    <text x="640" y="272" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
+          font-weight="bold" font-size="24" letter-spacing="9" fill="#c9a8e8">КОМАНДУЙ · СТРОЙ · ПОБЕЖДАЙ</text>
+
+    <text x="640" y="298" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif"
+          font-size="17" fill="#8f7fae">Армия против армии: пехота, танки, авиация и спецназ</text>
+  </g>
+  <rect x="3" y="3" width="1274" height="394" rx="16" fill="none" stroke="#1d3350" stroke-width="3"/>
+</svg>
