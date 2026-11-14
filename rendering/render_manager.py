@@ -11,6 +11,7 @@ from rendering.special_renderer import SpecialRenderer
 from rendering.building_renderer import BuildingRenderer
 from rendering.projectile_renderer import ProjectileRenderer
 from rendering.unit_renderer import UnitRenderer
+from rendering.detail import DamageFX, ShieldFX
 
 
 class RenderManager:
@@ -89,14 +90,11 @@ class RenderManager:
                 # Фолбэк — базовый рендер
                 entity.render(surface, camera)
 
-        # HP bar (если не рисуется внутри рендера)
-        if entity.is_unit and entity.alive:
-            hp_mode = 'damaged'
-            try:
-                from settings import game_settings
-                hp_mode = game_settings.get('hp_bar_mode')
-            except Exception:
-                pass
+        # Пост-эффекты: щит и повреждения (для юнитов и зданий)
+        if entity.alive:
+            if entity.shield > 0:
+                ShieldFX.render(surface, camera, entity, self.anim_time)
+            DamageFX.render(surface, camera, entity, self.anim_time)
 
     def render_combat_effects(self, surface, camera, combat_system, local_player_id):
         """Отрисовка боевых эффектов."""
@@ -128,19 +126,31 @@ class RenderManager:
            sr.bottom < 0 or sr.top > camera.screen_h:
             return True
 
-        # Обломки — затухающий серый силуэт с искрами
+        # Обломки — затухающий силуэт в цвете команды с искрами и вспышкой
         death_surf = pygame.Surface((sr.width + 4, sr.height + 4), pygame.SRCALPHA)
 
-        gray = int(60 * alpha)
+        gray = int(70 * alpha)
+        team = (120, 60, 50)
+        try:
+            tc = PLAYER_COLORS[entity.player_id % len(PLAYER_COLORS)]
+            team = (int(tc[0] * gray / 90), int(tc[1] * gray / 90),
+                    int(tc[2] * gray / 90))
+        except Exception:
+            pass
+
         if gray > 0:
-            body_color = (gray, gray // 2, gray // 3, int(200 * alpha))
+            body_color = (gray, gray, int(gray * 0.95), int(210 * alpha))
             pygame.draw.rect(death_surf, body_color, (2, 2, sr.width, sr.height),
+                             border_radius=2)
+            # Отпечаток командного цвета
+            pygame.draw.rect(death_surf, (*team, int(160 * alpha)),
+                             (2, 2, sr.width, max(2, sr.height // 4)),
                              border_radius=2)
 
             # Искры (в начале)
             if alpha > 0.5:
                 import random
-                spark_count = int(3 * alpha)
+                spark_count = int(4 * alpha)
                 for _ in range(spark_count):
                     spark_x = random.randint(2, sr.width)
                     spark_y = random.randint(2, sr.height)
@@ -150,4 +160,14 @@ class RenderManager:
                                        (spark_x, spark_y), random.randint(1, 2))
 
         surface.blit(death_surf, (sr.x - 2, sr.y - 2))
+
+        # Вспышка-кольцо в момент смерти
+        if alpha > 0.75:
+            ring_alpha = int((alpha - 0.75) / 0.25 * 140)
+            ring_r = int(sr.width * (1.6 - alpha * 0.8)) + 4
+            if ring_r > 2 and ring_alpha > 4:
+                ring = pygame.Surface((ring_r * 2 + 4, ring_r * 2 + 4), pygame.SRCALPHA)
+                pygame.draw.circle(ring, (255, 190, 90, ring_alpha),
+                                   (ring_r + 2, ring_r + 2), ring_r, 2)
+                surface.blit(ring, (sr.centerx - ring_r - 2, sr.centery - ring_r - 2))
         return True

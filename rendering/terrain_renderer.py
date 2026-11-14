@@ -189,6 +189,24 @@ class TerrainRenderer:
         # Рисуем основу
         pygame.draw.rect(surface, base, (sx, sy, size, size))
 
+        # Рельефное освещение: свет с северо-запада
+        strip = max(2, size // 5)
+        if size >= 8:
+            w_h = self.tilemap.get_height(tx - 1, ty)
+            n_h = self.tilemap.get_height(tx, ty - 1)
+            e_h = self.tilemap.get_height(tx + 1, ty)
+            s_h = self.tilemap.get_height(tx, ty + 1)
+            if w_h > height:
+                pygame.draw.rect(surface, darken(base, 16), (sx, sy, strip, size))
+            if n_h > height:
+                pygame.draw.rect(surface, darken(base, 12), (sx, sy, size, strip))
+            if e_h < height:
+                pygame.draw.rect(surface, brighten(base, 8),
+                                 (sx + size - strip, sy, strip, size))
+            if s_h < height:
+                pygame.draw.rect(surface, brighten(base, 6),
+                                 (sx, sy + size - strip, size, strip))
+
         # Граница высоты — тёмная линия для объёма
         if height > 0:
             # Проверяем соседей — если сосед ниже, рисуем край обрыва
@@ -306,6 +324,25 @@ class TerrainRenderer:
             highlight = brighten(SciFiPalette.WATER_SURFACE, 40)
             pygame.draw.circle(surface, highlight, (bx, by), bsize)
 
+        # Пена у берега: светлая кромка со стороны земли
+        if size >= 6:
+            foam = brighten(SciFiPalette.WATER_SURFACE, 55)
+            foam_pulse = (math.sin(t * 2.2 + tx * 0.9 + ty * 0.7) + 1) / 2
+            foam_col = lerp_color(SciFiPalette.WATER_SURFACE, foam, 0.4 + foam_pulse * 0.5)
+            edge = max(1, size // 8)
+            up_g = self.tilemap.get_tile(tx, ty - 1) not in (TILE_WATER, TILE_WALL)
+            down_g = self.tilemap.get_tile(tx, ty + 1) not in (TILE_WATER, TILE_WALL)
+            left_g = self.tilemap.get_tile(tx - 1, ty) not in (TILE_WATER, TILE_WALL)
+            right_g = self.tilemap.get_tile(tx + 1, ty) not in (TILE_WATER, TILE_WALL)
+            if up_g:
+                pygame.draw.rect(surface, foam_col, (sx, sy, size, edge))
+            if down_g:
+                pygame.draw.rect(surface, foam_col, (sx, sy + size - edge, size, edge))
+            if left_g:
+                pygame.draw.rect(surface, foam_col, (sx, sy, edge, size))
+            if right_g:
+                pygame.draw.rect(surface, foam_col, (sx + size - edge, sy, edge, size))
+
     def _render_ramp(self, surface, tx, ty, sx, sy, size, height, zoom):
         """Рампа (переход между высотами) со стрелкой направления."""
         # Градиент от тёмного к светлому
@@ -401,7 +438,7 @@ class TerrainRenderer:
             ds = max(2, int(d['size'] * scale))
             dh = max(3, int(d.get('height', 6) * scale))
 
-            # Кристалл — вытянутый ромб
+            # Кристалл — вытянутый ромб с тёмной гранью
             crystal_color = shimmer_color(SciFiPalette.TITAN_ORE, t + d['x'] * 0.1)
             pts = [
                 (dx, dy - dh),           # верх
@@ -410,10 +447,19 @@ class TerrainRenderer:
                 (dx + ds // 2, dy),      # право
             ]
             pygame.draw.polygon(surface, crystal_color, pts)
+            # Тёмная левая грань — объём
+            pygame.draw.polygon(surface, darken(crystal_color, 45), [pts[0], pts[1], pts[2]])
             # Блик
             bright = brighten(crystal_color, 60)
             pygame.draw.line(surface, bright, pts[0],
                              ((pts[0][0] + pts[3][0]) // 2, (pts[0][1] + pts[3][1]) // 2), 1)
+            # Искра-звёздочка (мерцает у отдельных кристаллов)
+            if (d['x'] + d['y']) % 3 == 0 and size >= 12:
+                tw = (math.sin(t * 4 + d['x'] * 1.7) + 1) / 2
+                if tw > 0.75:
+                    sr_ = max(1, int(2 * scale))
+                    pygame.draw.circle(surface, (255, 255, 230),
+                                       (pts[0][0], pts[0][1]), sr_)
 
         # Рамка ресурса
         if size >= 12:
@@ -465,6 +511,21 @@ class TerrainRenderer:
             if bubble_phase < 1:
                 bc = brighten(SciFiPalette.PLASMA_GLOW, 30)
                 pygame.draw.circle(surface, bc, (dx, dy), ds)
+
+        # Поднимающийся пар
+        if size >= 10:
+            for i in range(2):
+                phase = (t * 0.7 + i * 0.5) % 1.0
+                steam_y = cy - int(phase * size * 0.9)
+                steam_x = cx + int(math.sin(t * 2 + i * 2.4 + tx) * size * 0.12)
+                steam_r = max(2, int((3 + phase * 5) * scale))
+                steam_a = max(0, int(50 * (1 - phase)))
+                if steam_a > 3:
+                    puff = pygame.Surface((steam_r * 3, steam_r * 3), pygame.SRCALPHA)
+                    pygame.draw.circle(puff, (*SciFiPalette.PLASMA_GLOW, steam_a),
+                                       (steam_r * 3 // 2, steam_r * 3 // 2), steam_r)
+                    surface.blit(puff, (steam_x - steam_r * 3 // 2,
+                                        steam_y - steam_r * 3 // 2))
 
         # Рамка ресурса
         if size >= 12:
