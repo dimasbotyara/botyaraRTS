@@ -6,6 +6,7 @@
     rsvg-convert -w 1280 -h 400 assets/branding/banner_en.svg -o assets/branding/banner_en.png
     rsvg-convert -w 1280 -h 400 assets/branding/banner_ru.svg -o assets/branding/banner_ru.png
     rsvg-convert -w 1280 -h 400 assets/branding/banner_ru_alt.svg -o assets/branding/banner_ru_alt.png
+    rsvg-convert -w 1280 -h 400 assets/branding/banner_en_alt.svg -o assets/branding/banner_en_alt.png
     rsvg-convert -w 512 -h 512 assets/branding/icon.svg -o assets/branding/icon_512.png
     rsvg-convert -w 64  -h 64  assets/branding/icon.svg -o assets/branding/icon_64.png
 """
@@ -216,10 +217,14 @@ def jet(x, y, s, accent='#ff5f8a', contrail_w=170):
   </g>'''
 
 
-def banner_ru_alt():
+def banner_alt(lang):
     title = 'botyaraRTS'
-    subtitle = 'КОМАНДУЙ · СТРОЙ · ПОБЕЖДАЙ'
-    tips = 'Армия против армии: пехота, танки, авиация и спецназ'
+    if lang == 'en':
+        subtitle = 'COMMAND · BUILD · CONQUER'
+        tips = 'Army versus army: infantry, tanks, aircraft and special ops'
+    else:
+        subtitle = 'КОМАНДУЙ · СТРОЙ · ПОБЕЖДАЙ'
+        tips = 'Армия против армии: пехота, танки, авиация и спецназ'
     defs = '''    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0b0714"/>
       <stop offset="0.5" stop-color="#150d26"/>
@@ -350,9 +355,11 @@ for lang in ('en', 'ru'):
         f.write(banner_main(lang))
     print('wrote', path)
 
-with open(os.path.join(OUT, 'banner_ru_alt.svg'), 'w') as f:
-    f.write(banner_ru_alt())
-print('wrote banner_ru_alt.svg')
+for lang in ('en', 'ru'):
+    path = os.path.join(OUT, f'banner_{lang}_alt.svg')
+    with open(path, 'w') as f:
+        f.write(banner_alt(lang))
+    print('wrote', path)
 
 with open(os.path.join(OUT, 'icon.svg'), 'w') as f:
     f.write(icon_svg())

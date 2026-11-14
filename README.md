@@ -16,7 +16,7 @@ Strategy-grade AI opponents, real LAN multiplayer with a lobby, fog of war, rogu
 </div>
 
 <div align="center">
-<img src="assets/branding/banner_ru_alt.png" alt="botyaraRTS — tank column banner" width="100%"/>
+<img src="assets/branding/banner_en_alt.png" alt="botyaraRTS — tank column banner" width="100%"/>
 </div>
 
 ---
